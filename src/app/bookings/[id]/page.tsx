@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
@@ -48,7 +49,7 @@ export default async function Booking({ params, searchParams }: { params: Promis
           <p>התפיסה משתחררת בשעה {new Date(b.hold_expires_at).toLocaleTimeString("he-IL", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" })} אם לא תשולם מקדמה.</p>
         )}
         <p>{fmtDate(b.check_in)} עד {fmtDate(b.check_out)} · {b.guests ?? "?"} אנשים</p>
-        <p>לקוח: {b.customers?.full_name} · {b.customers?.phone}</p>
+        <p>לקוח: <Link href={`/customers/${b.customer_id}`}>{b.customers?.full_name}</Link> · {b.customers?.phone}</p>
         <p>בעל הדירה: {b.apartments?.owners?.name} {b.apartments?.owners?.phone}</p>
         <p>סכום העסקה: <strong>{b.total_price.toLocaleString()} ₪</strong> · מקדמה נדרשת (12%): <strong>{b.deposit_required.toLocaleString()} ₪</strong> · שולם: {paid.toLocaleString()} ₪</p>
       </div>
