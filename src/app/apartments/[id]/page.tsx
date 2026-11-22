@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
@@ -53,7 +54,10 @@ export default async function Apartment({ params, searchParams }: {
 
   return (
     <Shell role={role} name={name}>
-      <h1>{apt.name} <span className="muted">· {apt.owners?.name}</span></h1>
+      <div className="row">
+        <h1>{apt.name} <span className="muted">· {apt.owners?.name}</span></h1>
+        <Link className="btn" href={`/apartments/${id}/calendar`}>יומן וסנכרון</Link>
+      </div>
 
       {canEdit ? (
         <form className="card" action={saveApartment}>

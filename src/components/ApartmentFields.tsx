@@ -23,6 +23,8 @@ export default function ApartmentFields({ apt }: { apt: Apt }) {
       </div>
       <label>הערות</label>
       <textarea name="notes" rows={3} defaultValue={apt?.notes ?? ""} />
+      <label>כתובת יומן חיצוני לייבוא (iCal, https)</label>
+      <input name="ical_import_url" defaultValue={apt?.ical_import_url ?? ""} placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
       <h3>שעות סף (כל בעל דירה קובע לעצמו)</h3>
       <div className="grid2">
         <div>
@@ -56,6 +58,7 @@ export function parseApartment(fd: FormData) {
     onsite_contact: String(fd.get("onsite_contact") || "") || null,
     features: fd.getAll("features").map(String),
     notes: String(fd.get("notes") || "") || null,
+    ical_import_url: String(fd.get("ical_import_url") || "").trim() || null,
     early_cutoff_dow: Number(fd.get("early_cutoff_dow")),
     early_cutoff_time: String(fd.get("early_cutoff_time") || "12:00"),
     single_night_opens_dow: Number(fd.get("single_night_opens_dow")),
