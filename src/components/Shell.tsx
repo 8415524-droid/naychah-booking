@@ -22,6 +22,7 @@ export default function Shell({ role, name, children }: { role: Role; name: stri
           {role !== "none" && <Link href="/apartments">דירות</Link>}
           {role === "admin" && <Link href="/owners">בעלי דירות</Link>}
           {role === "admin" && <Link href="/users">משתמשים</Link>}
+          {role === "admin" && <Link href="/settings">הגדרות</Link>}
         </nav>
         <form action={logout}>
           <span className="who">{name} · {ROLE_HE[role]}</span> <button>יציאה</button>

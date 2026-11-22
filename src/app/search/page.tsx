@@ -4,6 +4,7 @@ import Shell from "@/components/Shell";
 import { addDays, depositFor, nowInJerusalem, quote, type PricingRule } from "@/lib/pricing";
 import { fmtDate, upcomingWeekends } from "@/lib/weekends";
 import { PERIOD_HE } from "@/lib/labels";
+import { normPhone } from "@/lib/pbx/types";
 
 type SP = { weekend?: string; stay?: string; from?: string; to?: string; guests?: string; budget?: string; err?: string };
 
@@ -36,7 +37,7 @@ async function closeBooking(fd: FormData) {
   const { data, error } = await supabase.rpc("create_hold", {
     p_apartment: apartment, p_check_in: checkIn, p_check_out: checkOut,
     p_guests: Number(fd.get("guests")) || null,
-    p_name: String(fd.get("name") || "").trim(), p_phone: String(fd.get("phone") || "").trim(),
+    p_name: String(fd.get("name") || "").trim(), p_phone: normPhone(String(fd.get("phone") || "")),
     p_total: q.total,
   });
   if (error) return fail(error.code === "23P01" ? "הדירה כבר נתפסה בתאריכים אלה" : "שגיאה בתפיסת הדירה");
