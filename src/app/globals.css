@@ -1,0 +1,11 @@
+:root { --bg:#faf7f2; --ink:#1f2933; --brand:#1d4e5f; --line:#e3ddd2; --card:#fff; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family: system-ui, "Segoe UI", Arial, sans-serif; line-height:1.5; }
+header.top { background:var(--brand); color:#fff; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; }
+header.top form button { background:transparent; color:#fff; border:1px solid #fff8; border-radius:6px; padding:6px 12px; }
+main { max-width:960px; margin:0 auto; padding:16px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:12px; }
+label { display:block; margin:10px 0 4px; font-weight:600; }
+input { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:16px; }
+button.primary { margin-top:14px; width:100%; padding:12px; background:var(--brand); color:#fff; border:0; border-radius:8px; font-size:16px; }
+.err { color:#b42318; margin-top:8px; }
