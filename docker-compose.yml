@@ -1,0 +1,44 @@
+# התקנה: העתק את .env.example ל-.env, מלא ערכים, והרץ: docker compose up -d --build
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      PBX_SECRET: ${PBX_SECRET}
+      TZINTUK_SECRET: ${TZINTUK_SECRET}
+      TZINTUK_CID: ${TZINTUK_CID:-1010}
+      TECHNOLINE_CALLER_ID: ${TECHNOLINE_CALLER_ID:-}
+    expose: ["3000"]
+
+  # HTTPS אוטומטי (Let's Encrypt). דורש שהדומיין מצביע על כתובת ה-IP של השרת.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [app]
+
+  # צינתוקים: קורא לעובד כל דקה. השיחות יוצאות מה-IP הקבוע של השרת.
+  tzintuk:
+    image: curlimages/curl:8.10.1
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'while true; do curl -fsS -m 25 http://app:3000/api/tzintuk/$${TZINTUK_SECRET} >/dev/null 2>&1; sleep 60; done'
+    environment:
+      TZINTUK_SECRET: ${TZINTUK_SECRET}
+    depends_on: [app]
+
+volumes:
+  caddy_data:
