@@ -19,9 +19,12 @@ export default function Shell({ role, name, children }: { role: Role; name: stri
           <Link href="/"><strong>נייחא</strong></Link>
           {(role === "admin" || role === "agent") && <Link href="/search">חיפוש</Link>}
           {role !== "none" && <Link href="/bookings">הזמנות</Link>}
+          {(role === "admin" || role === "agent") && <Link href="/customers">לקוחות</Link>}
+          {role === "admin" && <Link href="/reports">דוחות</Link>}
           {role !== "none" && <Link href="/apartments">דירות</Link>}
           {role === "admin" && <Link href="/owners">בעלי דירות</Link>}
           {role === "admin" && <Link href="/users">משתמשים</Link>}
+          {role === "admin" && <Link href="/settings">הגדרות</Link>}
         </nav>
         <form action={logout}>
           <span className="who">{name} · {ROLE_HE[role]}</span> <button>יציאה</button>

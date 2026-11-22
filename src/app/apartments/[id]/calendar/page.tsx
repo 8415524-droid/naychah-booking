@@ -7,6 +7,7 @@ import Shell from "@/components/Shell";
 import { addDays, dowOf, nowInJerusalem } from "@/lib/pricing";
 import { isSafeIcalUrl, parseIcal } from "@/lib/ical";
 import { DOW_HE } from "@/lib/labels";
+import { closeNight, openNight } from "@/lib/blocks";
 
 const MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 
@@ -17,16 +18,8 @@ async function toggleDay(fd: FormData) {
   const day = String(fd.get("day"));
   const m = String(fd.get("m"));
   const source = role === "admin" ? "admin" : "owner_web";
-  const { data: hit } = await supabase.from("blocks").select("*")
-    .eq("apartment_id", apt).lte("date_from", day).gt("date_to", addDays(day, 0)).limit(1);
-  const blk = hit?.find((b) => b.date_from <= day && b.date_to > day);
-  if (blk) {
-    await supabase.from("blocks").delete().eq("id", blk.id);
-    if (blk.date_from < day) await supabase.from("blocks").insert({ apartment_id: apt, date_from: blk.date_from, date_to: day, source: blk.source, note: blk.note });
-    if (addDays(day, 1) < blk.date_to) await supabase.from("blocks").insert({ apartment_id: apt, date_from: addDays(day, 1), date_to: blk.date_to, source: blk.source, note: blk.note });
-  } else {
-    await supabase.from("blocks").insert({ apartment_id: apt, date_from: day, date_to: addDays(day, 1), source });
-  }
+  const opened = await openNight(supabase, apt, day);
+  if (!opened) await closeNight(supabase, apt, day, source);
   revalidatePath(`/apartments/${apt}/calendar`);
   redirect(`/apartments/${apt}/calendar?m=${m}`);
 }
