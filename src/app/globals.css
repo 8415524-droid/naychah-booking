@@ -24,3 +24,13 @@ button.danger { background:#b42318; color:#fff; border:0; border-radius:8px; pad
 .checks input { width:auto; }
 .muted { color:#667085; font-size:14px; }
 .ok { color:#067647; }
+.cal { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin:12px 0; }
+.calh { text-align:center; font-size:13px; color:#667085; }
+.cell { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:62px; width:100%; border:1px solid var(--line); border-radius:8px; background:#fff; font:inherit; cursor:default; padding:2px; }
+button.cell { cursor:pointer; }
+.cell small { font-size:11px; }
+.cell.free { background:#ecfdf3; }
+.cell.blocked { background:#fee4e2; }
+.cell.ical { background:#fef0c7; }
+.cell.booked { background:#d1e0ff; }
+.cell.hold { background:#e9d7fe; }
