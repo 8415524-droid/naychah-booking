@@ -13,6 +13,7 @@ export default async function Home() {
         <div className="card">
           <h2>שלום {name}</h2>
           <p>דירות במערכת: <strong>{count ?? 0}</strong></p>
+          {role !== "owner" && <Link className="btn" href="/search">חיפוש דירה ללקוח</Link>}{" "}
           <Link className="btn" href="/apartments">לניהול הדירות</Link>
         </div>
       )}
