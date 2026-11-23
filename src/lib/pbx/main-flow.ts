@@ -7,6 +7,8 @@ export interface MainDeps {
   latestBooking(phone: string): Promise<{ apartment_name: string; check_in: string; check_out: string; status: string } | null>;
   /** הזמנות עתידיות של המתקשר (עד 3), עם סכומים בשקלים, לשלוחת "ההזמנה שלי". */
   bookingsByPhone(phone: string): Promise<MyBooking[]>;
+  /** שמירת הודעה קולית שהמתקשר השאיר (שלוחה 4). */
+  saveMessage?(m: { phone: string; fileId: string; fileName: string; seconds: number }): Promise<void>;
 }
 export interface MyBooking {
   apartment_name: string; check_in: string; check_out: string; status: string;
@@ -33,6 +35,11 @@ function toSecretary(s: MainSettings, name: string): PbxModule[] {
 }
 
 export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxResponse> {
+  // הודעה קולית שנקלטה (גם אם המתקשר ניתק באמצע ההקלטה)
+  if (q.FILEID_msg && deps.saveMessage) {
+    await deps.saveMessage({ phone: normPhone(q.PBXphone), fileId: q.FILEID_msg, fileName: q.FILE_msg ?? q.msg ?? "", seconds: Number(q.DURATION_msg ?? 0) || 0 });
+    return q.PBXcallStatus === "HANGUP" ? hangup() : [say("תודה, ההודעה נשמרה ונחזור אליכם בהקדם."), hangup()];
+  }
   // חזרה מניתוב או סיום שיחה
   if (q.PBXcallStatus === "HANGUP" || q.route1 !== undefined || q.route2 !== undefined || q.route3 !== undefined) return hangup();
   const s = await deps.settings();
@@ -40,7 +47,7 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
   if (q.main === undefined || q.main === "ERROR") {
     const hello: PbxModule[] = [];
     if (s.musicUrl) hello.push({ type: "simpleMessage", files: [{ fileLink: s.musicUrl }] });
-    const m = menu("main", "ברוכים הבאים לנַיְיחָא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3.", "123", true);
+    const m = menu("main", "ברוכים הבאים לנַיְיחָא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3. להשארת הודעה הקישו 4.", "1234", true);
     // קריינות מוקלטת מראש (קול אנושי) מחליפה את ההקראה הממוכנת כשהוגדר קישור
     if (s.welcomeAudioUrl && m.type === "simpleMenu") m.files = [{ fileLink: s.welcomeAudioUrl }];
     hello.push(m);
@@ -59,6 +66,10 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
     if (s.serviceRouterId) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), { type: "queueRouting", name: "route3", routerId: s.serviceRouterId }];
     if (normPhone(s.service).length >= 9) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), route("route3", s.service)];
     return [say("מעביר אותך לנציג."), ...toSecretary(s, "route3")];
+  }
+  if (q.main === "4") {
+    return [{ type: "record", name: "msg", max: 120, min: 2, confirm: "no", hangupSave: "yes",
+      files: [{ text: "אנא השאירו הודעה אחרי הצליל, כולל שם ומספר טלפון, ונחזור אליכם בהקדם." }] }];
   }
   return hangup();
 }

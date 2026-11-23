@@ -7,6 +7,7 @@ export type PbxModule =
   | { type: "getDTMF"; name: string; files: PbxFile[]; min: number; max: number; timeout?: number; confirmType?: "digits" | "number" | "no" }
   | { type: "simpleRouting"; name: string; dialPhone: string; displayNumber?: string; routingMusic?: "yes" | "no"; ringSec?: number }
   | { type: "queueRouting"; name: string; routerId: string }
+  | { type: "record"; name: string; files: PbxFile[]; max?: number; min?: number; confirm?: "no" | "confirmOnly" | "ful"; hangupSave?: "yes" | "no" }
   | { type: "hangup" };
 export type PbxResponse = PbxModule | PbxModule[];
 
