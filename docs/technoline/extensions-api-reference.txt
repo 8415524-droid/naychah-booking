@@ -1,0 +1,923 @@
+ 
+ מדריך API ניהול שלוחות 
+ טכנוליין — הקול בידיים שלך
+ מדריך API ניהול שלוחות
+ מדריך מלא לכל הפעולות של מנוע ניהול השלוחות, הקבצים, ההרשאות והודעות המערכת
+ מרכז התיעוד
+ סקירה 
+ Schema 
+ עץ שלוחות 
+ קבצים 
+ הגדרות שלוחה 
+ הרשאות 
+ הודעות מערכת 
+ דוחות 
+ Dropdowns 
+ סיכום 
+ סקירה כללית
+ ה-API של ניהול שלוחות מאפשר ליצור ולנהל ממשק משתמש מלא לעץ השלוחות, הקבצים, ההגדרות, ההרשאות והודעות המערכת — ללא תלות בעמוד PHP ייעודי. כל הנתונים הסטטיים (סוגי שלוחות, הגדרות שדות, מבני טפסים) והנתונים הדינמיים (עץ, קבצים, הגדרות) נגישים דרך ה-API.
+ המודל המנטלי של המערכת
+ כדי להבין את כל ה-API, מספיק להכיר 5 מושגים:
+ מושג מהו 
+ שלוחה (Extension) 
+ צומת יחיד בעץ השלוחות. יש לה id , type (מה היא עושה — תפריט, ניתוב, נגן מדיה וכו'), name , extension (הספרה להקשה), belowExtension (מזהה ההורה) ו- settings (JSON של שדות לפי הסוג). 
+ קובץ (File) 
+ קובץ שמע ששייך לשלוחה מסוימת. יש לו runningOrder (סדר השמעה) ואפשרות לתיוג. 
+ עץ (Tree) 
+ השלוחות בנויות כעץ — כל שלוחה עם הורה יחיד ומספר ילדים. השורש הוא "תפריט ראשי". 
+ Schema (types / fields / forms) 
+ ה-API מגיש בעצמו את סכמת ה-UI: מה הסוגים הזמינים, איזה שדות קיימים (label, type, options), ומה הטופס לכל סוג. אין צורך להרדקוד טפסים . 
+ הודעות מערכת 
+ הקראות ברירת מחדל של המערכת ("לחצו 1", "קלט לא תקין") שכל שלוחה יכולה לדרוס בטקסט או הקלטה. 
+ כתובת ה-API
+ https://api.tlivr.com/ivrFilesApi.php
+ אימות: כל בקשה חייבת להכיל apiKey=YOUR_API_KEY (כפרמטר GET או שדה POST). את המפתח מקבלים משירות הלקוחות.
+ זרימת עבודה לממשק חדש
+ 1. Bootstrap 
+ getUiSchema 
+ →
+ 2. עץ 
+ foldersList 
+ →
+ 3. טעינת שלוחה 
+ folderSettings 
+ →
+ 4. Dropdowns 
+ getOptions2 
+ →
+ 5. שמירה 
+ extensionSet 
+ קידוד הבקשות: ברירת מחדל — GET עם query string או POST עם application/x-www-form-urlencoded . חריגים: saveCustomMessagesBeta מצפה ל-JSON body, uploadFile ו- uploadChunk ל- multipart/form-data . כל תגובה מוחזרת כ-JSON, בד"כ עם "status": "OK" או "status": "ERROR" + note .
+ אדרוס שלוחה לפי extensionId או path : 
+ כל פעולה שמקבלת extensionId מקבלת גם path — נתיב מוחלט של ספרות-החיוג מהתפריט הראשי אל היעד. הנתיב חייב להתחיל ב- / (כמו נתיב קבצים): / = השורש, /1 = הילד שמקישים אליו 1 , /1/2/3 = שלוש רמות מטה. כך אפשר לפנות לשלוחה לפי מיקומה בתפריט בלי לדעת מזהה.
+ חייב להתחיל ב- / : ערך שלא מתחיל ב- / (למשל 1/2/3 ) אינו נתיב תקין ונדחה. / לבדו = השורש .
+ חכם לגבי מפרידים: מעבר ל- / המוביל הנדרש — סלאשים כפולים/מיותרים ורווחים מתעלמים מהם. /1/2/3 , /1//2///3/ ו- /1 / 2 /3 כולם מובילים לאותו צומת. גם \ עובד כמפריד.
+ עדיפות: אם נשלחו שניהם — extensionId גובר; path משמש רק כשאין extensionId .
+ לא נמצא / לא תקין: נתיב שלא נפתר או בפורמט שגוי מפיל את הפעולה בשגיאת-הבעלות הרגילה ( errorCode 5 ) — אף פעם לא פוגע בצומת שגוי בטעות.
+ ילד בלי ספרת-חיוג: צומת שאינו-שורש נגיש ב- path רק אם יש לו ספרת-חיוג ( extension ). צמתים עם extension ריק (למשל תחת תפריט מסוג api ) אינם ניתנים לאדרוס-נתיב — השתמשו ב- extensionId שלהם (מ- foldersList ).
+ יעד העתקה/העברה: ה- target של folderCopy / folderMove / fileCopy / fileMove מקבל גם targetPath (אותו פורמט עם / מוביל).
+ GET ivrFilesApi.php?action=filesList&extensionId=60412&apiKey=...
+GET ivrFilesApi.php?action=filesList&path=/1/2/3&apiKey=... # שקול
+GET ivrFilesApi.php?action=filesList&path=/&apiKey=... # השורש
+POST ivrFilesApi.php?action=uploadFile&path=/1//4&apiKey=... # multipart: file=...
+ חוקי רינדור לטפסים דינמיים
+ כשמציגים טופס עבור שלוחה: שולפים את forms[type] , מיטרים על הפריטים, ולכל פריט מחפשים את הגדרת השדה ב- fields[input] . כל פריט יכול להכיל:
+ מאפיין השפעה 
+ size 1 = רוחב מלא (2 עמודות ב-grid), 2 = חצי (תא יחיד). 
+ startLine "yes" → שורת grid חדשה. 
+ view_if 
+ DSL להצגה מותנית: field:val / field:val1*val2 (OR לאותו שדה) / A&B (AND) / A|B (OR בין שדות). 
+ input_id override ל-id — שימושי לרינדור של אותו שדה מספר פעמים (למשל digits1 , digits2 …). 
+ errorExit אם ה-dropdown ( options: GET ) ריק — מציגים את המחרוזת הזו במקום הטופס. 
+ html רק כשהפריט הוא type:"html" — בלוק HTML חופשי להזרקה. 
+ Dropdowns דינמיים: שדה שה- options שלו שווה למחרוזת "GET" — יש להבעיר את optionsKey ל- getOptions2 . ניתן לבקש כמה מפתחות בקריאה אחת: list=a,b,c .
+ תוכן עניינים
+ Schema / Bootstrap 
+ עץ שלוחות 
+ ניהול קבצים 
+ הגדרות שלוחה 
+ הרשאות גישה 
+ הודעות מערכת 
+ Dropdowns דינמיים 
+ סיכום מהיר 
+ Schema / Bootstrap
+ כל המטא-דאטה הסטטית של המערכת (סוגי שלוחות, הגדרות שדות, מבני טפסים,
+ רשימות תפוצה והגדרות חשבון) זמינה דרך קבוצת endpoints מסומנים ב חדש .
+ getUiSchema חדש 
+ GET action=getUiSchema 
+ טוען בקריאה אחת את כל הסכמה — מומלץ בטעינה ראשונית של הממשק.
+ תגובה
+ {
+ "status" : "OK" ,
+ "types" : {
+ "menu" : { "name" : "תפריט" , "txt" : "שלוחת תפריט לניתוב לשלוחות" , "icn" : "78292" },
+ "audioPlayer" : { "name" : "נגן מדיה" , "icn" : "JzHJv10US60C" },
+ "simpleRouting" : { "name" : "ניתוב שיחה קולית" , "icn" : "53439" }
+ },
+ "fields" : {
+ "dialPhone" : {
+ "id" : "dialPhone" ,
+ "type" : "number" ,
+ "name" : "מספר טלפון" ,
+ "tolip" : "" ,
+ "explanation" : "יש לרשום מספר טלפון..." 
+ },
+ "voiceMail" : {
+ "id" : "voiceMail" ,
+ "type" : "select" ,
+ "options" : "no~לא פעיל*yes~פעיל" ,
+ "name" : "תא קולי" 
+ }
+ },
+ "forms" : {
+ "simpleRouting" : [
+ { "type" : "input" , "input" : "dialPhone" , "startLine" : "" , "size" : 2 },
+ { "type" : "input" , "input" : "voiceMail" , "size" : 1 },
+ { "type" : "input" , "input" : "stt_email" , "view_if" : "voiceMail:yes" , "size" : 1 }
+ ]
+ },
+ "accountSettings" : {
+ "use_rh" : "yes" ,
+ "rh_max" : 5000 ,
+ "ivrSystemPhone" : "0772222603" 
+ },
+ "mailingLists" : [
+ { "id" : "1000" , "name" : "כללי" , "label" : "1000-כללי" }
+ ]
+}
+ מבנה שדה ב- fields 
+ מאפיין תפקיד 
+ id מזהה לשדה (שם ה-input) 
+ type 
+ text / number / select /
+ multySelect / selectTags /
+ email / url / audio /
+ datetime-local 
+ name כותרת להצגה 
+ tolip טולטיפ מרחף 
+ explanation הסבר תחת השדה 
+ default ערך ברירת מחדל 
+ options 
+ פורמט: val1~txt1*val2~txt2 — או "GET" עם optionsKey לשליפה דינמית 
+ optionsKey 
+ מפתח ל- getOptions2 
+ מבנה פריט טופס ב- forms[type] 
+ מאפיין תפקיד 
+ type input / html 
+ input מפתח ל- fields 
+ input_id אופציונלי — override ל-id של ה-input (לשימוש חוזר באותו שדה, למשל digits1…digits9 ) 
+ title אופציונלי — override לכותרת 
+ view_if 
+ תנאי הצגה: field:val / field:val1*val2 .
+חיבורים: & (AND), | (OR) 
+ startLine "yes" → שורת grid חדשה 
+ size 1 = span על 2 עמודות; 2 = תא יחיד 
+ default ערך ברירת מחדל לשדה הזה 
+ errorExit הודעה שתוצג במקום הטופס כשאין אפשרויות 
+ html (רק כאשר type=html ) — מחרוזת HTML חופשי 
+ getExtensionTypes חדש 
+ GET action=getExtensionTypes 
+ מחזיר רק את types + accountSettings . שימושי לרשימה הראשונה של "בחר סוג שלוחה" בזמן יצירה.
+ accountSettings.use_rh = "yes" מפעיל את הסוגים runRingHangup , rhAdd , rhRemove .
+ getFieldsSchema חדש 
+ GET action=getFieldsSchema 
+ מחזיר רק את מערך השדות ( colls_array ). לאחסון ב-cache בקליינט.
+ getFormLayout חדש 
+ GET action=getFormLayout&type=<typeKey> 
+ החזרת מבנה הטופס של סוג שלוחה בודד. ללא type — מחזיר את כל הטפסים.
+ מפתח הסבר חובה 
+ type 
+ מפתח סוג שלוחה (למשל menu , simpleRouting , audioPlayer ) 
+ אופציונלי 
+ דוגמה
+ // GET ivrFilesApi.php?action=getFormLayout&type=simpleRouting 
+{
+ "status" : "OK" ,
+ "type" : "simpleRouting" ,
+ "form" : [
+ { "type" : "input" , "input" : "dialPhone" , "size" : 2 },
+ { "type" : "input" , "input" : "voiceMail" , "size" : 1 }
+ ]
+}
+ getAccountSettings חדש 
+ GET action=getAccountSettings 
+ שדה הסבר ערכים 
+ use_rh 
+ האם סוגי צינתוק (runRingHangup / rhAdd / rhRemove) פעילים לחשבון 
+ yes / no 
+ rh_max 
+ מקסימום טלפונים לרשימת צינתוק (0 = ללא הגבלה) 
+ מספר שלם 
+ ivrSystemPhone 
+ מספר מערכת המרכזיה 
+ מחרוזת 
+ getMailingLists חדש 
+ GET action=getMailingLists 
+ מחזיר את רשימות התפוצה של המשתמש כ-JSON נקי (במקום <option> כמו שהיה קודם).
+ {
+ "status" : "OK" ,
+ "mailingLists" : [
+ { "id" : "1000" , "name" : "כללי" , "label" : "1000-כללי" }
+ ]
+}
+ ניהול אנשי-הקשר בתוך רשימה (הוספה/עדכון/מחיקה/חסימה של מספר, או שליפת חברי הרשימה עם חיפוש ועימוד) הוא endpoint נפרד — ראו Mailing Lists API ( mailingListsApi.php : phoneEdit , phonesList , phonesDelete , setStatus , uplodePhones ). ה- id מכאן הוא ה- mailingList שם. הפעולות פועלות על אותם אנשי-קשר שמוצגים בממשק, וממודרות לחשבון שלך.
+ getExtensionPath חדש 
+ GET action=getExtensionPath&extensionId=<id> 
+ מחזיר breadcrumb מהשלוחה הראשית עד לשלוחה המבוקשת (כולל עצמה).
+ {
+ "status" : "OK" ,
+ "extensionId" : "12345" ,
+ "path" : [
+ { "id" : "1" , "name" : "תפריט ראשי" , "extension" : "" , "type" : "menu" },
+ { "id" : "4500" , "name" : "שירות" , "extension" : "2" , "type" : "menu" },
+ { "id" : "12345" , "name" : "נציג" , "extension" : "3" , "type" : "simpleRouting" }
+ ]
+}
+ עץ שלוחות
+ foldersList
+ GET action=foldersList 
+ מחזיר את כל עץ השלוחות של המשתמש. אין פרמטרים (מלבד apiKey ).
+ תגובה
+ {
+ "1" : {
+ "id" : "1" , "name" : "תפריט ראשי" , "belowExtension" : "" , "extension" : "" , "type" : "menu" ,
+ "children" : {
+ "4500" : { "id" : "4500" , "extension" : "2" , "type" : "menu" , "children" : { ... } }
+ }
+ }
+}
+ folderCopy
+ GET action=folderCopy 
+ העתקה רקורסיבית של שלוחה — כולל תת-שלוחות וקבצים.
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID אחד או מספר IDs מופרדים בפסיק חובה 
+ target או targetPath ID של שלוחת היעד (ההורה החדש) חובה 
+ המערכת חוסמת העתקה לתוך עצמה / לתוך צאצא שלה.
+ תגובה
+ { "status" : "OK" , "newExtensionIds" : [ 70001 , 70002 ], "foldersList" : { ... } }
+ דוגמה — העתקה מרובה
+ GET ivrFilesApi.php?action=folderCopy&extensionId=4001,4023,4099&target=4502
+ כל מקור נבדק עצמאית; מקורות לא תקינים מדולגים בשקט. newExtensionIds מוחזר באותו סדר של הבקשה (פחות אלו שדולגו).
+ folderMove
+ GET action=folderMove 
+ מעביר שלוחה (או מספר) להורה חדש — מעדכן רק belowExtension , הצאצאים עוברים אוטומטית.
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID / IDs מופרדים בפסיק חובה 
+ target או targetPath ID של הורה חדש חובה 
+ דוגמה — העברה מרובה
+ GET ivrFilesApi.php?action=folderMove&extensionId=4001,4023,4099&target=4502
+ folderDelete
+ GET action=folderDelete 
+ מחיקת שלוחה. הקבצים תחתיה מסומנים ב- trash=time() (soft).
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID / IDs מופרדים בפסיק חובה 
+ השלוחה הראשית ( belowExtension = null ) לא ניתנת למחיקה.
+ ניהול קבצים
+ filesList
+ GET action=filesList 
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID של השלוחה חובה 
+ תגובה
+ [
+ {
+ "id" : "60383" ,
+ "name" : "ברכות" ,
+ "ivrName" : "abc123" ,
+ "time" : "1713000000" ,
+ "runningOrder" : 1000 ,
+ "runningOrderView" : 1 ,
+ "details" : { "phone" : "052-1234567" },
+ "taggs" : [ { "tag" : "5" , "name" : "ברכות" , "color" : "#4caf50" } ],
+ "opus_size" : 102400 ,
+ "source" : "r2" 
+ }
+]
+ uploadFile
+ POST multipart action=uploadFile 
+ העלאת קובץ-שמע בודד לשלוחה. הקובץ עובר שער-אבטחה: גודל עד 10MB (וגם חייב להיכנס למגבלת-הבקשה של השרת — upload_max_filesize / post_max_size ; בשרת הנוכחי ~2MB, ולכן מעבר לכך חובה uploadInit למטה), סיומת מרשימת פורמטי-שמע מאושרים, ובדיקת-תוכן אמיתית ב- ffprobe (קובץ שאינו אודיו שמשנים לו את הסיומת — נדחה). קבצי-הביניים נשמרים מחוץ ל-document-root (ספרייה פרטית 0700) ונמחקים מיד עם העלייה ל-R2 — שום קובץ לא נשאר על השרת. לאחר אימות הקובץ מומר ל-opus ונשמר ב-R2.
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) יעד (חייב להיות שלך) חובה 
+ file קובץ שמע (multipart) חובה 
+ name שם להצגה (ברירת מחדל — שם הקובץ). מחוטא: תווי-בקרה ומפרידי-נתיב מוסרים, עד 120 תווים אופציונלי 
+ checkDuplicate STOP (שגיאה אם קיים) / BACKUP (גיבוי עם תאריך) / אחרת — החלפה אופציונלי 
+ סיומות מאושרות: wav, mp3, ogg, oga, opus, m4a, m4b, aac, flac, amr, wma, aiff, aif, aifc, mp4, 3gp, 3gpp, webm, mka, caf, au, ac3 . אורך-אודיו מרבי: 6 שעות.
+ קודי שגיאה
+ errorCode תיאור 
+ 2 לא התקבל קובץ 
+ 3 קובץ שמע לא תקין / לא ניתן לפענוח 
+ 4 extensionId חסר 
+ 5 extensionId לא שייך למשתמש 
+ 6 שגיאה בקבלה/המרה/אחסון 
+ 8 כפילות + checkDuplicate=STOP 
+ 9 קובץ גדול מדי (מעל 60MB) 
+ 10 סוג-קובץ לא נתמך 
+ 11 אודיו ארוך מדי 
+ בכל כשל מוחזר גם reason קריא-מכונה.
+ uploadInit → uploadChunk → uploadComplete
+ העלאה-בחתיכות (resumable) של קבצי-אודיו גדולים 
+ לקבצים מעל מגבלת-ההעלאה-הרגילה (ולעמידות מול ניתוקים) — מעלים בחתיכות. כל חתיכה היא בקשת multipart/form-data קטנה שנשארת מתחת למגבלת-הבקשה של השרת — וזה בדיוק מה שמאפשר לשרת חסום-2MB לקלוט קבצים גדולים כרצונך. כל הסשן נעול ל- apiKey שלך: ה- uploadId שייך לחשבון שלך בלבד. מגבלות: קובץ עד 512MB , סשן חי 24 שעות , וגודל-החתיכה נחתך אוטומטית למה שהשרת מקבל — uploadInit מחזיר chunkSize (השתמשו בו) ו- maxRequestBytes (אל תשלחו חתיכה גדולה מזה). קבצי-הביניים נשמרים מחוץ ל-document-root ונמחקים אחרי ההרכבה.
+ 1. uploadInit (POST/GET — פותח סשן) 
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) יעד (חייב להיות שלך) חובה 
+ fileName שם-הקובץ המקורי כולל סיומת (לבדיקת הרשימה-המאושרת) חובה 
+ totalSize גודל הקובץ המלא בבייטים חובה 
+ name שם להצגה (ברירת מחדל — fileName בלי סיומת) אופציונלי 
+ chunkSize גודל-חתיכה מבוקש בבייטים (אופציונלי). נחתך אוטומטית לתקרת-הבקשה של השרת; ברירת-מחדל 1MB. תמיד השתמשו ב- chunkSize שחוזר מ- uploadInit אופציונלי 
+ sha256 SHA-256 (hex) של הקובץ המלא — מאומת ב- uploadComplete אופציונלי 
+ checkDuplicate כמו ב- uploadFile אופציונלי 
+ מחזיר: {"status":"OK","uploadId":"<64-hex>","chunkSize":n,"totalChunks":n,"expiresAt":unix,"received":[]} . חותכים את הקובץ ל- totalChunks חלקים בגודל chunkSize (האחרון — השארית).
+ 2. uploadChunk (POST multipart — שולחים כל חתיקה) 
+ מפתח הסבר חובה 
+ uploadId מתוך uploadInit חובה 
+ chunkIndex אינדקס החתיכה (מבוסס-0) חובה 
+ chunk הבייטים של החתיכה (שדה multipart) חובה 
+ chunkSha256 SHA-256 (hex) של החתיכה — מאומת אם נשלח אופציונלי 
+ הסדר לא משנה, ושליחה-חוזרת של אותה חתיכה בטוחה (idempotent) — כך החידוש פשוט. מחזיר: {"status":"OK","received":count,"total":n,"complete":bool} .
+ 3. uploadComplete (POST/GET — מרכיב, מאמת ומאחסן) 
+ מפתח הסבר חובה 
+ uploadId מתוך uploadInit חובה 
+ מרכיב את החתיכות, מאמת (גודל + SHA-256 אם סופק + ffprobe ), ממיר ל-opus, מאחסן ב-R2 ומשייך לשלוחה — ואז מוחק את הסשן והחתיכות. מחזיר: {"status":"OK","name":"...","fileId":id} .
+ פעולות-עזר
+ פעולה הסבר 
+ uploadStatus ( uploadId ) מחזיר received[] — אילו חתיכות התקבלו, לחידוש לאחר ניתוק 
+ uploadAbort ( uploadId ) מבטל ומוחק את כל החתיכות 
+ קודי שגיאה (חתיכות)
+ errorCode תיאור 
+ 9 / 10 / 11 גודל חסר/גדול מדי / סוג לא נתמך / אודיו ארוך מדי 
+ 12 יותר מדי חתיכות 
+ 20 סשן לא מוכר / לא שלך 
+ 21 / 22 סשן לא פתוח / פג-תוקף 
+ 23 / 24 / 25 חתיכה חסרה / אינדקס מחוץ-לטווח / גודל-חתיכה לא תקין 
+ 26 חריגה מהגודל הכולל 
+ 27 אי-התאמת hash של חתיכה 
+ 28 כשל בשמירת חתיכה 
+ 30 חתיכות חסרות (התגובה כוללת missing[] ) 
+ 31 / 32 / 33 כשל-הרכבה / אי-התאמת גודל / אי-התאמת checksum 
+ fileDelete
+ GET action=fileDelete 
+ Soft delete — מסמן trash=time() . תומך במחיקה מרובה.
+ מפתח הסבר חובה 
+ fileId ID / IDs מופרדים בפסיק חובה 
+ belowExtension ID של השלוחה — לחזרה עם filesList מעודכן חובה 
+ fileRename
+ GET action=fileRename 
+ מפתח הסבר חובה 
+ fileId ID של הקובץ חובה 
+ newName שם חדש חובה 
+ belowExtension ID של השלוחה — לחזרה עם filesList מעודכן חובה 
+ fileTagging
+ GET action=fileTagging 
+ מפתח הסבר חובה 
+ fileId ID של הקובץ חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID של השלוחה הנוכחית חובה 
+ type SAVE חובה 
+ tags IDs מופרדים בפסיק, או טקסטים חדשים (ייווצרו כתגיות חדשות) חובה 
+ fileOrderSet
+ GET action=fileOrderSet 
+ שינוי מיקום (סדר השמעה) של הקובץ בשלוחה.
+ מפתח הסבר חובה 
+ fileId ID של הקובץ חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID של השלוחה חובה 
+ type 
+ END / TOP / AFTER / RAPLACE 
+ חובה 
+ val 
+ מספר קובץ יעד (ל- AFTER / RAPLACE ) 
+ אופציונלי 
+ fileCopy / fileMove
+ GET action=fileCopy | fileMove 
+ fileMove מעתיק לשלוחה חדשה ומסמן את המקור כ- trash — זוהי הסמנטיקה של "גזירה והדבקה".
+ מפתח הסבר חובה 
+ fileId ID / IDs מופרדים בפסיק חובה 
+ target או targetPath ID שלוחה יעד חובה 
+ דוגמה — העתקה/הזזה מרובה
+ GET ivrFilesApi.php?action=fileCopy&fileId=901,902,903,904&target=4502
+ מחזיר { status:"OK", note:"" } או { status:"ERROR", note } אם target לא קיים. הקבצים מוכנסים בסדר הבקשה, כל אחד מקבל runningOrder חדש (תוספות של 1000 מ-RO האחרון של היעד).
+ אין endpoint נפרד ל"גזירה" — לסמנטיקת cut-and-paste של קבצים השתמש ב- fileMove , ולשלוחות ב- folderMove .
+ fileDownload
+ GET action=fileDownload 
+ הורדת האודיו של קובץ. הקובץ מומר ומוגש תמיד כ- MP3 (128kbps מונו), ללא תלות בפורמט המקורי.
+ זיהוי הקובץ — אחת מהדרכים:
+ מפתח הסבר חובה 
+ audio ה- ivrName של הקובץ (מוחזר ב- filesList ). הדרך המדויקת ביותר אחד מהשניים 
+ fileName שם התצוגה של הקובץ ( name ב- filesList ). קבצים שנמחקו לא נמצאים אחד מהשניים 
+ extension יחד עם fileName : ID שלוחה לצמצום החיפוש (שמות יכולים לחזור בשלוחות שונות) אופציונלי 
+ play בלי הפרמטר — הורדה כקובץ מצורף ( Content-Disposition: attachment ). עם play=1 — הזרמה להאזנה ( Accept-Ranges: bytes ), מתאים לתגית <audio> ולנגנים עם דילוג אופציונלי 
+ דוגמאות
+ GET ivrFilesApi.php?action=fileDownload&audio=<ivrName>&apiKey=...
+GET ivrFilesApi.php?action=fileDownload&fileName=ברכה&extension=4500&play=1&apiKey=...
+ fileId לא נתמך בפעולה זו — השתמש ב- audio או fileName . במצב הורדה שם הקובץ המוצע הוא שם אקראי שנוצר בשרת (לא שם התצוגה) — שמור אותו בשם משלך.
+ בכישלון (קובץ לא קיים) התשובה היא טקסט רגיל עם HTTP 200, לא JSON — בדוק את ה- Content-Type ( audio/mp3 = הצלחה) לפני שמתייחסים לגוף התשובה כאודיו.
+ מוזיקה בהמתנה
+ target=musicOnHold · musicOnHoldList · musicOnHoldSetDefault 
+ העלאת מוזיקה משלכם ובחירת המוזיקה הפעילה לכל המערכת. ההעלאה משתמשת באותן פעולות ובאותן בדיקות של קבצי שלוחה, עם target=musicOnHold במקום extensionId . קובץ מעל מגבלת הבקשה (רוב קבצי המוזיקה) מעלים בחתיכות.
+ מפתח הסבר חובה 
+ target musicOnHold (ב- uploadFile / uploadInit ) חובה 
+ file קובץ שמע (multipart). לא בשימוש בהעלאה בחתיכות חובה 
+ name שם להצגה (ברירת מחדל: שם הקובץ) אופציונלי 
+ setDefault yes מפעיל את המוזיקה מיד (ב- uploadFile / uploadComplete ) אופציונלי 
+ POST ivrFilesApi.php?action=uploadFile&target=musicOnHold&setDefault=yes&apiKey=... # multipart: file=..., name=...
+POST ivrFilesApi.php?action=uploadInit&target=musicOnHold&fileName=song.mp3&totalSize=<bytes>&name=Song&apiKey=...
+POST ivrFilesApi.php?action=uploadChunk ... # פעם אחת לכל חתיכה
+POST ivrFilesApi.php?action=uploadComplete&uploadId=<id>&setDefault=yes&apiKey=...
+ תשובה: {"status":"OK","id":<id>,"name":"...","music":"<value>"} . את הערך music מעבירים ל- musicOnHoldSetDefault . קודי השגיאה זהים ל- uploadFile ולהעלאה בחתיכות.
+ musicOnHoldList
+ GET. המוזיקה המובנית וההעלאות שלכם: {"status":"OK","noMusic":false,"system":[...],"custom":[...]} . בכל פריט music , name , url (האזנה) ו- active ; בפריטי custom גם id . noMusic הוא true כשהמערכת משמיעה צליל חיוג רגיל.
+ musicOnHoldSetDefault
+ בחירת המוזיקה הפעילה. הפרמטר music (חובה): ערך music מהרשימה, default (ברירת המחדל של המערכת) או no (צליל חיוג רגיל). תשובה: {"status":"OK","music":"<value>"} . errorCode 5: הערך לא נמצא ברשימה שלכם.
+ המוזיקה הפעילה מושמעת למתקשרים שממתינים בתור, אלא אם נקבעה מוזיקה אחרת לאותו תור ( מודול ניתוב לתור ).
+ הגדרות שלוחה
+ folderSettings
+ GET action=folderSettings 
+ מחזיר את כל המידע על שלוחה: name , extension , belowExtension , type , settings (JSON מפוענח), security (JSON מפוענח).
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID של השלוחה חובה 
+ extensionSet
+ POST action=extensionSet 
+ שמירה או יצירה של שלוחה.
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID קיים, או NEW ליצירה חובה 
+ belowExtension ID הורה (ב- NEW ) חובה 
+ name שם השלוחה אופציונלי 
+ extension מספר השלוחה (להקשה) אופציונלי 
+ type מפתח מתוך types חובה 
+ settings[*] מפת המפתחות מה- fields הרלוונטיים לסוג (לפי forms[type] ) אופציונלי 
+ דוגמה
+ POST ivrFilesApi.php?action=extensionSet&extensionId=NEW&belowExtension=1
+Content-Type: application/x-www-form-urlencoded
+name=שירות&extension=2&type=menu
+&settings[maxDigits]=1&settings[menuReplay]=4
+ עבור type=menu עם פריטי תפריט דינמיים ( menuItems ) —
+ שלוחת תת-אוסף settings[menuItems][i][menuItem]=upload|file|text ,
+ ו- settings[menuItems][i][uploadAudio]=<tmpFileName> אחרי שימוש ב- ?ivrFileUploader=audioTmp .
+ הרשאות גישה
+ securitySet
+ POST action=securitySet 
+ שומר רשימה של תנאי גישה על השלוחה. כל שדה שמכיל securityType 
+ במקום כלשהו במערך נכנס ל- security של השלוחה בסדר רציף
+ ( S1 , S2 , …).
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID של השלוחה חובה 
+ belowExtension ID הורה (לעדכון עץ) אופציונלי 
+ S{i}[*] שדות תנאי (חייב להכיל securityType ) חובה 
+ דוגמה
+ POST ivrFilesApi.php?action=securitySet&extensionId=4500
+Content-Type: application/x-www-form-urlencoded
+S1[securityType]=login&S1[passType]=adminPass
+&S2[securityType]=phoneFilter&S2[phones]=0521234567,0501234567
+ הודעות מערכת
+ systemMessagesList
+ GET action=systemMessagesList 
+ מחזיר את כל קודי הודעות המערכת + ההתאמות שכבר הוגדרו לשלוחה.
+ מפתח הסבר חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID השלוחה חובה 
+ getCustomMessages
+ GET action=getCustomMessages 
+ מחזיר רצף הודעות מותאמות לקוד מסוים (לעריכה).
+ מפתח הסבר חובה 
+ code קוד הודעה (למשל sys-5 ) חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID השלוחה חובה 
+ saveCustomMessagesBeta
+ POST action=saveCustomMessagesBeta (JSON body) 
+ Body
+ {
+ "code" : "sys-5" ,
+ "extensionId" : "4500" ,
+ "messages" : [
+ { "type" : "TEXT" , "value" : "ברוכים הבאים" },
+ { "type" : "FILE" , "value" : "<ivrName>" , "conditions" : [ ... ] }
+ ]
+}
+ updateSystemMessage / deleteSystemMessage
+ POST action=updateSystemMessage | deleteSystemMessage 
+ updateSystemMessage — גרסה ישנה של שמירה בודדת (TEXT או FILE). deleteSystemMessage — מוחק את כל ההתאמות לקוד נתון בשלוחה.
+ מפתח הסבר חובה 
+ code קוד הודעה חובה 
+ extensionId או path (נתיב ספרות-חיוג, ר' §קידוד) ID השלוחה חובה 
+ דוחות — האזנה לקבצים וכניסה לשלוחות חדש 
+ שתי פעולות קריאה-בלבד שחושפות את הנתונים ש מצטברים אוטומטית עם כל שיחה נכנסת — ללא הגדרה. שתיהן נעולות לחשבון שלכם ( apiKey ). סינון תאריכים אופציונלי ומכליל: from / to בפורמט YYYY-MM-DD . מערכת חדשה מחזירה אפסים עד שמגיעות שיחות.
+ fileListenReport
+ GET action=fileListenReport 
+ איך קובץ שמע בודד באמת הואזן — כמה השמיעו אותו, עד כמה הקשיבו, היכן נטשו, ומה הקישו.
+ מפתח הסבר חובה 
+ fileId מזהה הקובץ (מ- filesList ) חובה 
+ from / to טווח תאריכים YYYY-MM-DD (מכליל) אופציונלי 
+ detail 1 — לצרף גם פירוט לכל מאזין ( listeners[] ) אופציונלי 
+ תגובה
+ // GET ivrFilesApi.php?action=fileListenReport&fileId=60383&apiKey=... 
+{
+ "status" : "OK" ,
+ "fileId" : 60383,
+ "fileName" : "ברכה" ,
+ "fileLenMs" : 32534,
+ "buckets" : 50,
+ "summary" : {
+ "listeners" : 2, "calls" : 4, "windows" : 4,
+ "listenMs" : 67336, "wallSec" : 68, "avgMs" : 33668,
+ "completed" : 1, "completionPct" : 50, "avgCoveragePct" : 54
+ },
+ "coverage" : [ { "fromMs" :0, "toMs" :651, "listeners" :4, "plays" :4, "retention" :4 } ],
+ "actions" : [ { "action" : "key1" , "n" :3 } ],
+ "byDay" : [ { "day" : "2026-06-04" , "calls" :4 } ],
+ "byHour" : [ 0, 0, …24 ערכים… ]
+}
+ completionPct — אחוז המאזינים שכיסו ≥90% מהקובץ.
+ coverage[] — הקובץ חתוך ל- buckets קטעים שווים; retention = כמה שיחות הגיעו לקטע (עקומת-נטישה).
+ byHour — מערך 24 ערכים, שעון מקומי (Asia/Jerusalem).
+ עם detail=1 נוסף listeners[] (שורה לכל מאזין). שגיאות: 2 חסר fileId, 5 הקובץ לא בחשבונכם.
+ extensionVisits
+ GET action=extensionVisits 
+ איך מתקשרים נעים בין השלוחות — כניסות לכל שלוחה, משפך-עומק, מעברים, נקודות-יציאה ומסלולים פופולריים.
+ מפתח הסבר חובה 
+ extensionId או path הגבלה לשלוחה בודדת (ברירת-מחדל: כל המערכת) אופציונלי 
+ from / to טווח תאריכים YYYY-MM-DD (מכליל) אופציונלי 
+ תגובה
+ // GET ivrFilesApi.php?action=extensionVisits&apiKey=... 
+{
+ "status" : "OK" ,
+ "summary" : { "visits" :812, "calls" :300, "callers" :274, "avgDepth" :2.7, "avgDur" :14, "maxDepth" :6 },
+ "byExtension" : [ { "extension" : "4500" , "extName" : "שירות" , "visits" :210, "calls" :198, "callers" :190, "avgDur" :9 } ],
+ "funnel" : [ { "depth" :1, "calls" :300, "pct" :100, "drop" :0 }, { "depth" :2, "calls" :205, "pct" :68, "drop" :32 } ],
+ "transitions" : [ { "from" : "1" , "to" : "4500" , "count" :140 } ],
+ "exits" : [ { "extension" : "4500" , "name" : "שירות" , "count" :88, "pct" :29 } ],
+ "paths" : [ { "seq" :[ "1" , "4500" ], "count" :120 } ],
+ "byDay" : [ … ], "byHour" : [ … ],
+ "sampleCalls" : 300, "capped" : false
+}
+ byExtension[] — כניסות לכל שלוחה (הליבה: "כניסה לשלוחות"), מהמובילה לנמוכה.
+ funnel[] — כמה שיחות הגיעו לכל עומק-ניווט, עם drop =אחוז הנשירה מהעומק הקודם.
+ exits[] — היכן שיחות הסתיימו לרוב. paths[] — רצפי-הניווט השכיחים (עד 4 צעדים).
+ הפילוחים המורכבים מחושבים על מדגם השיחות האחרונות ( sampleCalls / capped ).
+ activeCalls
+ GET action=activeCalls 
+ כל השיחות המתנהלות כעת — כולל היכן כל מתקשר נמצא בעץ ברגע זה, המסלול המלא שעבר, ובשלוחת נגן-מדיה גם הקובץ שאותו הוא שומע. תצלום בזמן-אמת; דגמו אותו (למשל כל 4–5 שניות) לבניית לוח-שיחות חי.
+ מפתח הסבר חובה 
+ ללא פרמטרים — מחזיר את כל השיחות החיות במערכת (עד 2000 במקביל). 
+ תגובה
+ // GET ivrFilesApi.php?action=activeCalls&apiKey=... 
+{
+ "status" : "Ok" ,
+ "count" : 2,
+ "now" : 1752900000,
+ "calls" : [
+ {
+ "callId" : "1752899987.4471" ,
+ "phone" : "0501234567" ,
+ "did" : "0772222603" ,
+ "seconds" : 41,
+ "extensionId" : "7100" ,
+ "extension" : "2" ,
+ "extName" : "מכירות" ,
+ "extType" : "audioPlayer" ,
+ "path" : "1/2" ,
+ "file" : { "id" :60383, "name" : "ברוכים הבאים" , "playing" :true },
+ "diversion" : { "number" : "548466096" , "reason" : "unavailable" , "counter" : "2" },
+ "status" : "in_call" ,
+ "routeTarget" : "" 
+ }
+ ]
+}
+ שדה משמעות 
+ callId מזהה ייחודי של השיחה החיה (זהה ל- extensionVisits ולדוח מהלך-השיחה). 
+ phone / did מספר המתקשר (פורמט 0… ) / המספר שחויג כדי להגיע למערכת. 
+ seconds שניות מתחילת השיחה. 
+ extensionId מזהה השלוחה הנוכחית (אותו ערך שמשמש כ- extensionId= בשאר ה-API). 
+ extension / extName / extType ספרת-החיוג, השם והסוג של השלוחה הנוכחית ( menu , audioPlayer , simpleRouting …). 
+ path נתיב-החיוג של השלוחה הנוכחית מהשורש, למשל "1/2" — הספרות שמתקשר מקיש כדי להגיע אליה. אותו פורמט שמקובל בפרמטר path= . 
+ file בשלוחת audioPlayer : { id, name, playing } . playing:true = הקובץ מתנגן ברגע זה ; false = הקובץ האחרון שהסתיים (בין קבצים / אחרי הקשה). אחרת null . 
+ diversion מופיע רק כששיחה הגיעה מופנית : { number, name, reason, counter } . number = המספר שממנו הופנתה השיחה (הקו שאליו המתקשר חייג בפועל), reason = unconditional / user-busy / no-answer / unavailable , counter = כמות ההפניות. בשיחה רגילה — null . 
+ status in_call (בשיחה/בשלוחה), waiting (בתור, טרם נענה), routed (חובר ליעד). 
+ routeTarget כאשר status = routed — שם היעד שאליו נותבה השיחה. 
+ השלוחה הנוכחית נלקחת מיומן-הניווט בזמן-אמת, כך שהיא מדויקת גם כשאותה ספרת-חיוג חוזרת תחת הורים שונים. קריאה-בלבד — לעולם לא משנה מצב שיחה.
+ callHistory
+ GET action=callHistory 
+ היסטוריית שיחות — שורה אחת לכל שיחה בטווח-זמן: מי התקשר, מתי, כמה זמן, לאיזו שלוחה נכנס ואיפה סיים. משוחזר מיומן-הניווט. קריאה-בלבד .
+ מפתח הסבר חובה 
+ from , to טווח תאריכים YYYY-MM-DD (כולל). ברירת-מחדל: 3 הימים האחרונים. הטווח מוגבל ל-62 יום (טווח רחב יותר יצומצם ל-62 הימים האחרונים). לא 
+ phone סינון לפי מספר המתקשר (התאמת תת-מחרוזת, ספרות בלבד). לא 
+ did סינון לפי המספר המחוייג (התאמת תת-מחרוזת). לא 
+ hourFrom , hourTo הגבלה לטווח שעות-ביום 0 – 23 (שניהם נדרשים). לא 
+ limit מקסימום שורות, ברירת-מחדל 50 , עד 100 . לא 
+ תגובה
+ // GET ivrFilesApi.php?action=callHistory&from=2026-08-07&apiKey=... 
+{
+ "status" : "Ok" , "count" : 1, "capped" : false,
+ "from" : "2026-08-07" , "to" : "2026-08-10" , "limit" : 50,
+ "calls" : [
+ {
+ "callId" : "1752899987.4471" ,
+ "phone" : "0501234567" , "did" : "0772222603" ,
+ "start" : 1752899987, "end" : 1752900041, "seconds" : 54, "steps" : 4,
+ "entryExt" : "7100" , "entryName" : "תפריט ראשי" , "lastName" : "מכירות" 
+ }
+ ]
+}
+ שדה משמעות 
+ callId מזהה השיחה — העבירו אותו ל- callJourney למסלול המלא. 
+ phone / did מספר המתקשר ( 0… ) / המספר שחויג. 
+ start / end חותמות-זמן (unix) של הכניסה הראשונה והפעילות האחרונה. 
+ seconds משך השיחה בשניות ( end − start ). 
+ steps כמה שלוחות המתקשר עבר. 
+ entryExt / entryName השלוחה הראשונה שאליה נכנס (מזהה / שם). 
+ lastName שם השלוחה האחרונה שאליה הגיע. 
+ recordings הקלטות הניתוב שבוצעו בשיחה — רשומה לכל ניתוב שנענה : recId , recUrl (ההקלטה המשותפת), target , answerPhone , seconds . בשיחה עם הקלטה נפרדת לכל צד מופיעים גם callerRecUrl (המתקשר / הצד החיצוני בלבד) ו- agentRecUrl (הנציג / השלוחה בלבד); בלי הקלטה נפרדת השדות לא מופיעים. 
+ capped true = הגעתם למכסת-השורות; צמצמו טווח/הוסיפו סינון. 
+ callJourney
+ GET action=callJourney 
+ מסלול שיחה בודדת — כל שלוחה שהמתקשר נכנס אליה, כמה שהה, ובשלוחות נגן-מדיה אילו קבצים הושמעו וכמה הואזנו. קריאה-בלבד .
+ מפתח הסבר חובה 
+ callId מזהה השיחה מ- callHistory (או activeCalls ). כן 
+ תגובה
+ // GET ivrFilesApi.php?action=callJourney&callId=1752899987.4471&apiKey=... 
+{
+ "status" : "Ok" , "callId" : "1752899987.4471" ,
+ "head" : { "phone" : "0501234567" , "did" : "0772222603" , "time" :1752899987 },
+ "steps" : [
+ {
+ "extension" : "7100" , "extName" : "תפריט ראשי" ,
+ "enterTime" : 1752899987, "duration" : 12,
+ "audio" : [ { "fileName" : "ברוכים הבאים" , "fromSec" :0, "toSec" :8, "lenSec" :8, "heardSec" :8, "action" : "menu" , "key" : "1" } ]
+ }
+ ]
+}
+ שדה משמעות 
+ head כותרת: phone , did , ו- time (unix) של הצעד הראשון. 
+ steps[].extension / extName מזהה השלוחה שאליה נכנס בצעד זה / שמה בזמן הביקור. 
+ steps[].enterTime / duration זמן-הכניסה (unix) / שניות-שהייה ( 0 = מעבר/gateway). 
+ steps[].audio בשלוחות נגן-מדיה: קבצים שהושמעו — fileName , fromSec / toSec (חלון-ההשמעה), lenSec (אורך הקובץ), heardSec (שניות שהואזנו בפועל), action , ו- key (מקש שהוקש). אחרת מערך ריק. 
+ outboundCalls
+ GET action=outboundCalls 
+ שיחות יוצאות משני מקורות, שורה לכל חיוג, מהחדשה לישנה, עם ההקלטה של כל חיוג שנענה. קריאה-בלבד .
+ source: "extension" — שיחות שחייגו שלוחות ה-SIP שלכם מהטלפון/סופטפון (וגם שיחות click2call ).
+ source: "campaign" — ניתוב simpleRouting / queueRouting שבוצע בתוך שיחת קמפיין (הקמפיין חייג לטלפון, ותגובת ה-API או השלוחה שהופעלה ניתבה את השיחה הלאה). כך מקבלים את ההקלטה של קמפיין "נציג קודם" ( campaignRun עם messagesType=apiUrl שמחזיר simpleRouting ללקוח).
+ callHistory לא כולל שיחות אלו — הוא בנוי על יומן-הניווט בעץ השלוחות, ושיחות אלו לא נכנסות לעץ. גם campaignReport אינו כולל הקלטות. לשתיהן השתמשו ב- outboundCalls .
+ מפתח הסבר חובה 
+ callId כל החיוגים של שיחה אחת לפי מזהה השיחה — ה- PBXcallId שהשרת שלכם קיבל במהלך השיחה (גם callId ב- callHistory / callJourney ). מתעלם מ- from / to / source . זו הדרך להגיע להקלטה של ניתוב שתגובת ה-API שלכם הפעילה: שמרו את PBXcallId בזמן השיחה ושלפו אחרי קריאת ה- HANGUP . לא 
+ source extension — רק חיוגי שלוחות SIP; campaign — רק ניתובים מתוך שיחות קמפיין. ברירת-מחדל: שניהם. לא 
+ from , to טווח תאריכים YYYY-MM-DD (כולל). ברירת-מחדל: 3 הימים האחרונים. הטווח מוגבל ל-62 יום (טווח רחב יותר יצומצם ל-62 הימים האחרונים). לא 
+ extension רק שיחות שחייגה שלוחת SIP זו (התאמה מדויקת, למשל 250 ). בשורות קמפיין — הטלפון שהקמפיין חייג. לא 
+ phone סינון לפי המספר שחויג (התאמת תת-מחרוזת, ספרות בלבד). לא 
+ status answered — רק שיחות שנענו; unanswered — רק שיחות שלא נענו. ברירת-מחדל: שניהם. לא 
+ limit מקסימום שורות, ברירת-מחדל 50 , עד 100 . לא 
+ תגובה
+ // GET ivrFilesApi.php?action=outboundCalls&extension=250&apiKey=... 
+{
+ "status" : "Ok" , "count" : 2, "capped" : false,
+ "from" : "2026-09-19" , "to" : "2026-09-22" , "limit" : 50,
+ "calls" : [
+ {
+ "callId" : "1758531307.10231" , "time" : 1790071307, "source" : "extension" ,
+ "extension" : "250" , "campaignPhone" : "" , "did" : "" , "target" : "0501234567" , "targetName" : "" ,
+ "status" : "ANSWER" , "answered" : true, "answerPhone" : "0501234567" ,
+ "ringSeconds" : 2, "talkSeconds" : 35,
+ "recordings" : [ { "recId" : "b7c2e1f0a9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3" , "recUrl" : "https://audio.ipsales.co.il/b7c2e1f0a9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3.opus" } ]
+ },
+ {
+ "callId" : "1758531265.10229" , "time" : 1790071265, "source" : "extension" ,
+ "extension" : "250" , "campaignPhone" : "" , "did" : "" , "target" : "0529876543" , "targetName" : "" ,
+ "status" : "CANCEL" , "answered" : false, "answerPhone" : "" ,
+ "ringSeconds" : 6, "talkSeconds" : 0,
+ "recordings" : []
+ }
+ ]
+}
+ שדה משמעות 
+ callId מזהה השיחה. 
+ time חותמת-זמן (unix) של החיוג. 
+ source extension — חיוג של שלוחת SIP; campaign — ניתוב שבוצע בתוך שיחת קמפיין. 
+ extension מספר שלוחת ה-SIP שחייגה (כפי שמופיע ב שלוחות SIP ). ריק בשורות קמפיין. 
+ campaignPhone / did שורות קמפיין בלבד: הטלפון שהקמפיין חייג (למשל הנציג) / המספר היוצא של הקמפיין. ריקים בשורות שלוחה. 
+ target / targetName המספר שחויג ( 0… ) / שם היעד אם ידוע (בד"כ ריק בחיוג חופשי). 
+ status / answered סטטוס החיוג: ANSWER , NOANSWER , BUSY , CANCEL (השלוחה ניתקה לפני מענה), CONGESTION , CHANUNAVAIL . answered = true כשהסטטוס ANSWER . 
+ answerPhone המספר שענה; ריק כשלא נענה. 
+ ringSeconds / talkSeconds שניות מהחיוג עד מענה/ניתוק / שניות שהשיחה הייתה מחוברת ( 0 כשלא נענתה). 
+ recordings הקלטת השיחה — רשומה אחת לשיחה שנענתה , מערך ריק אחרת. recId מזהה ההקלטה, recUrl הקובץ להשמעה ( https://audio.ipsales.co.il/<recId>.opus ). אותן הקלטות כמו ב נתבי שיחות ← היסטוריית שיחות . בשיחה עם הקלטה נפרדת לכל צד מופיעים גם callerRecUrl (המתקשר / הצד החיצוני בלבד) ו- agentRecUrl (הנציג / השלוחה בלבד); בלי הקלטה נפרדת השדות לא מופיעים. 
+ capped true = הגעתם למכסת-השורות; צמצמו טווח או הוסיפו extension / status . 
+ דוגמה — ההקלטה של ניתוב שתגובת ה-API הפעילה בשיחת קמפיין
+ // GET ivrFilesApi.php?action=outboundCalls&callId=2126713de833c9b9aeeaa746183630ddcbd763051b42&apiKey=... 
+{
+ "status" : "Ok" , "count" : 1, "callId" : "2126713de8…" ,
+ "calls" : [ {
+ "source" : "campaign" , "campaignPhone" : "0583220875" , "did" : "023766400" ,
+ "target" : "0501234567" , "status" : "ANSWER" , "talkSeconds" : 17,
+ "recordings" : [ { "recId" : "8d4aa2a4…" , "recUrl" : "https://audio.ipsales.co.il/8d4aa2a4….opus" } ]
+ } ]
+}
+ הקלטה פועלת תמיד — בשיחות SIP יוצאות ובכל simpleRouting / queueRouting ; אין מתג לכל שלוחה או מודול. ההקלטה קיימת רק כשהחיוג נענה. שליפה לפי campaignId אינה זמינה — שמרו אצלכם את ה- PBXcallId של כל שיחה.
+ אירועי שיחה (Webhook יוצא)
+ PUSH — המרכזייה קוראת אליכם 
+ בשונה משאר הקצוות (שאתם קוראים אליהם), זהו push : המרכזייה קוראת לכתובת שלכם. כל שיחה שמגיעה לשלב ניתוב שולחת אירועים:
+ שיחה נכנסת לשלוחת ניתוב: ניתוב פשוט, ניתוב IP, נתב שיחות / תור;
+ ניתוב שמודול API מפעיל ( simpleRouting / ipRouting / queueRouting בתגובת המודול);
+ שיחה יוצאת משלוחת SIP למספר חיצוני (רק לפי הכתובת של המערכת, ראו למטה).
+ שיחה שנשארת במערכת הקולית (תפריטים, השמעות, הקלטות) ולא מגיעה לניתוב לא שולחת אירועים.
+ אירוע מתי שליחה 
+ waiting תחילת הניתוב (המתקשר נכנס לנתב / היעד מתחיל לצלצל). בזמן אמת, ניסיון אחד. 
+ answer יעד ענה. בזמן אמת, ניסיון אחד. 
+ hangup סיום הניתוב, בין אם נענה ובין אם לא. בזמן אמת, ניסיון אחד. 
+ completed פעם אחת לכל שיחה , אחרי שהשיחה הסתיימה וכל ההקלטות שלה עלו : ההקלטה המשותפת, ההקלטות הנפרדות לכל צד ותא קולי. ברקע, עם ניסיונות חוזרים . 
+ לעיבוד שיחות (תמלול, סיכום, CRM) השתמשו ב- completed . זה האירוע היחיד שמכיל את שמות הקבצים, ומובטח שהוא מגיע אחרי שהקבצים קיימים.
+ הכתובת נלקחת לפי הסדר: (1) eventsUrl על שלוחת הניתוב, (2) לשיחה אחת: eventsUrl בתגובת מודול API שמפעיל ניתוב ( simpleRouting / ipRouting / queueRouting ), או eventsUrl בבקשת click2call . חל על כל האירועים של אותה שיחה עד סופה. (3) ברירת המחדל של המערכת (הגדרות ← אירועי שיחה). שיחות שחויגו מהטלפון של שלוחת SIP משתמשות רק בה. ריק בכולם = מושבת. מגדירים בממשק הניהול, ואין action של apiKey לכך. http:// או https:// בלבד.
+ שליחה ואבטחה
+ POST , Content-Type: application/json , גוף JSON ב-UTF-8. הכותרות בכל בקשה:
+ כותרת משמעות 
+ X-IPPBX-Event שם האירוע (זהה ל- event בגוף). 
+ X-IPPBX-Delivery מזהה ייחודי של ההודעה. זהה בכל ניסיון חוזר של אותה הודעה, כדי שתוכלו להתעלם מכפילויות. מופיע גם בגוף כ- deliveryId . 
+ X-IPPBX-Timestamp זמן החתימה (unix). 
+ X-IPPBX-Signature sha256= + HMAC-SHA256 (hex) של <X-IPPBX-Timestamp>.<הגוף כפי שהתקבל> , במפתח מפתח ה-API של המערכת . נשלח רק כשלמערכת יש מפתח API. 
+ X-IPPBX-Attempt ב- completed בלבד: מספר הניסיון, 1 עד 4 . 
+ החזירו 2xx כלשהו תוך 15 שניות. גוף התגובה לא נקרא. הפניות (redirect) לא מבוצעות.
+ waiting / answer / hangup : ניסיון אחד, בלי ניסיון חוזר. השליחה לא מעכבת את השיחה.
+ completed : כשאין תשובת 2xx (זמן קצוב, שגיאת חיבור, 4xx / 5xx ) ההודעה נשלחת שוב, בערך אחרי 0 שניות, 10 שניות, דקה ו-5 דקות. עד 4 ניסיונות בסך הכול.
+ הסדר בין האירועים ברשת לא מובטח. הסתמכו על time ועל שם האירוע.
+ אימות החתימה (PHP)
+ $body = file_get_contents( 'php://input' );
+$ts = $_SERVER[ 'HTTP_X_IPPBX_TIMESTAMP' ] ?? '' ;
+$sig = $_SERVER[ 'HTTP_X_IPPBX_SIGNATURE' ] ?? '' ;
+$ok = hash_equals( 'sha256=' . hash_hmac( 'sha256' , $ts . '.' . $body, $API_KEY), $sig)
+ && abs(time() - (int)$ts) < 600; // דחיית הודעות ישנות 
+ waiting / answer / hangup 
+ שדה (בכל אירוע) משמעות 
+ event waiting / answer / hangup . 
+ time חותמת זמן (unix) של האירוע. 
+ deliveryId מזהה ייחודי של ההודעה (זהה ל- X-IPPBX-Delivery ). 
+ callId מזהה השיחה ( PBXcallId ), זהה ל- activeCalls / callHistory / callJourney . 
+ num המספר הראשי של המערכת. 
+ did נכנסת: המספר שחויג. יוצאת: המספר החיצוני שחויג. 
+ phone נכנסת: מספר המתקשר. יוצאת: שם המשתמש של שלוחת ה-SIP. 
+ extensionId / extensionPath מזהה שלוחת הניתוב ונתיב החיוג שלה. 
+ routingType simple / ip / queue . 
+ click2callId רק בשיחה שהתחילה מ- click2call : ה- callId ש- click2call החזיר. 
+ אירוע שדות נוספים 
+ waiting target (שם היעד/התור), targetPhone (המספר/התור שמחויג). 
+ answer answerPhone (המספר/הנציג שענה). 
+ hangup status ( ANSWER / NOANSWER / BUSY / CANCEL …), statusText (עברית), answerLength (שניות חיבור), ringLength (שניות צלצול). 
+ completed 
+ הודעה אחת לכל שיחה. בשיחה אחת יכול להיות יותר מניתוב אחד (למשל נתב שזמן ההמתנה בו נגמר, ואחריו תא קולי, או העברה ליעד שני). השדות העליונים מתארים את הניתוב המרכזי : האחרון שנענה, ואם אף אחד לא נענה, האחרון. כל ניתוב מופיע ב- legs .
+ שדה משמעות 
+ event / time / deliveryId completed / זמן סיום השיחה (unix) / מזהה ההודעה. 
+ callId PBXcallId , אותו מזהה כמו באירועים האחרים וב- callHistory . 
+ num המספר הראשי של המערכת. 
+ direction in (נכנסת) או out (יוצאת משלוחת SIP). 
+ from נכנסת: מספר המתקשר. יוצאת: מספר השלוחה שחייגה. 
+ to נכנסת: המספר שחויג. יוצאת: המספר החיצוני שחויג. 
+ did , phone , extensionId , extensionPath כמו באירועים האחרים. 
+ callerId ביוצאת בלבד: המספר שהוצג לצד שחויג. 
+ dialedBy ביוצאת בלבד: { "extension", "sipUser", "name" } , כלומר מספר השלוחה, שם המשתמש שלה ושמה. בנכנסת: null . 
+ status ANSWER , NOANSWER , BUSY , CANCEL , CONGESTION , CHANUNAVAIL , CLOSE (נתב מחוץ לשעות הפעילות), TIMEOUT (זמן ההמתנה בנתב נגמר). NOROUTE = הניתוב לא התחיל (למשל מספר לא תקין או אין יתרה). 
+ statusText תיאור הסטטוס בעברית. 
+ callLength שניות מתחילת הניתוב ועד סופו. 
+ answerLength שניות שבהן השיחה הייתה מחוברת (0 אם לא נענתה). 
+ ringLength שניות צלצול / המתנה עד המענה. 
+ routingType simple / ip / queue . 
+ answeredBy מי ענה, או null אם לא נענתה: { "type", "phone", "extension", "sipUser", "name" } . type = sip (שלוחת SIP של המערכת: extension = מספר השלוחה, sipUser = שם המשתמש, name = שם השלוחה), phone (מספר טלפון) או ip (כתובת IP/SIP). ביוצאת זה הצד החיצוני. 
+ recordingId , recordingUrl ההקלטה המשותפת של השיחה (שני הצדדים). ריק אם לא נענתה או לא הוקלטה. 
+ callerRecId , callerRecUrl הקלטה נפרדת: הצד החיצוני (המתקשר בנכנסת, המספר שחויג ביוצאת). רק כשההקלטה הנפרדת פעילה. 
+ agentRecId , agentRecUrl הקלטה נפרדת: צד הנציג / השלוחה . רק כשההקלטה הנפרדת פעילה. 
+ voiceMailId , voiceMailUrl הודעה שהושארה בתא הקולי בשיחה, אם הושארה. 
+ recordingsReady true = כל הקבצים שברשימה כבר עלו. false = עיבוד הקבצים הנפרדים נמשך יותר מ-15 דקות, וההודעה נשלחה בלעדיהם. אפשר לקבל אותם אחר כך דרך callHistory ( callerRecUrl / agentRecUrl ). 
+ legs מערך, פריט לכל ניתוב בשיחה לפי הסדר: routingType , status , statusText , callLength , answerLength , ringLength , target , targetName , answeredBy , ושדות ההקלטות והתא הקולי שלמעלה. 
+ שדות *Id הם מזהי קבצים, ושדות *Url הם קישורי הורדה ישירים לאודיו (Opus). את ההקלטה הנפרדת לכל צד מפעילים בשלוחת הניתוב, בתגובת מודול ה-API ( "recordSplit": "yes" ), בשלוחת SIP, או לכל השיחות היוצאות של המערכת.
+ דוגמה: completed , שיחה נכנסת שנענתה בנתב על ידי שלוחת SIP
+ // POST https://your-server.example/webhook · X-IPPBX-Event: completed · X-IPPBX-Attempt: 1 
+ // X-IPPBX-Delivery: 8920a326a10ce40b856f9c08 · X-IPPBX-Timestamp: 1794526729 · X-IPPBX-Signature: sha256=e79ef456974cf3... 
+{
+ "event" : "completed" , "time" : 1794526719, "deliveryId" : "8920a326a10ce40b856f9c08" ,
+ "callId" : "c0ca17b14b3155a387f31a0cf972a49d1d1d35d1ed2f" , "num" : "0772222603" ,
+ "direction" : "in" , "from" : "0501234567" , "to" : "0772222603" ,
+ "did" : "0772222603" , "phone" : "0501234567" , "extensionId" : "7100" , "extensionPath" : "1/2" ,
+ "callerId" : "" , "dialedBy" : null,
+ "status" : "ANSWER" , "statusText" : "שיחה נענתה" ,
+ "callLength" : 41.3, "answerLength" : 33.8, "ringLength" : 7.5, "routingType" : "queue" ,
+ "answeredBy" : { "type" : "sip" , "phone" : "101" , "extension" : "101" , "sipUser" : "TLIVR100016" , "name" : "שירות לקוחות" },
+ "recordingId" : "142bef4d8dae538c80369aaed46f457ac0876fbe9c" ,
+ "recordingUrl" : "https://audio.ipsales.co.il/142bef4d8dae538c80369aaed46f457ac0876fbe9c.opus" ,
+ "callerRecId" : "b157dfaeb161057dec5bc7cbcbc32d9f2db18b9f76" ,
+ "callerRecUrl" : "https://audio.ipsales.co.il/b157dfaeb161057dec5bc7cbcbc32d9f2db18b9f76.opus" ,
+ "agentRecId" : "a22585218ed6eb194b5b57b92e2194de258527d424" ,
+ "agentRecUrl" : "https://audio.ipsales.co.il/a22585218ed6eb194b5b57b92e2194de258527d424.opus" ,
+ "voiceMailId" : "" , "voiceMailUrl" : "" , "recordingsReady" : true,
+ "legs" : [ { "routingType" : "queue" , "status" : "ANSWER" , /* … אותם שדות לכל ניתוב … */ } ]
+}
+ שיחה יוצאת (שלוחה 101 חייגה ל-0533108801): "direction": "out" , "from": "101" , "to": "0533108801" , "callerId" = המספר שהוצג, "dialedBy": { "extension": "101", "sipUser": "MESER348485", "name": "…" } , "answeredBy": { "type": "phone", "phone": "0533108801", … } .
+ completed מגיע בדרך כלל כמה שניות אחרי הניתוק. עם הקלטה נפרדת הוא ממתין ששני הקבצים הנפרדים יעלו (בדרך כלל כמה שניות אחרי השיחה, ובשיחות ארוכות יותר). גם עם ניסיונות חוזרים, אם חייבים לעבד כל שיחה, השאירו הצלבה תקופתית מול callHistory , למשל פעם בלילה, למקרה שכל 4 הניסיונות נכשלו. מ-11/2026 השדה answerPhone (ב- recordings של callHistory ) מתמלא גם בשיחות שנענו בנתב (תור) ובניתוב IP. לפני כן הוא היה ריק בשיחות האלה.
+ numbersList חדש 
+ GET action=numbersList 
+ כל מספרי הטלפון של המערכת, ולכל מספר — לאיזו שלוחה הוא מנותב . מתקשר שמחייג למספר נכנס ישירות לשלוחה של אותו מספר; מספר בלי יעד נכנס לעץ הראשי.
+ מפתח הסבר חובה 
+ number החזרת מספר אחד בלבד (ספרות, עם או בלי 0 מוביל). בלי הפרמטר — כל המספרים. לא 
+ תגובה
+ // GET ivrFilesApi.php?action=numbersList&apiKey=... 
+{
+ "status" : "Ok" ,
+ "count" : 3,
+ "numbers" : [
+ { "number" : "0772222603" , "isPrimary" :true, "label" : "" , "routesTo" : "root" , "extensionId" : "" , "path" : "" , "extName" : "" , "extType" : "" },
+ { "number" : "0733103222" , "isPrimary" :false, "label" : "מכירות" , "routesTo" : "extension" , "extensionId" : "7100" , "path" : "1/2" , "extName" : "מכירות" , "extType" : "queueRouting" },
+ { "number" : "0733103223" , "isPrimary" :false, "label" : "" , "routesTo" : "missing" , "extensionId" : "" , "path" : "" , "extName" : "" , "extType" : "" }
+ ],
+ "callerIds" : [
+ { "phone" : "0501234567" , "addedAt" : "2026-05-03 01:35:31" , "source" :[ "system" ], "usedBySip" :[], "trunkDefault" :false, "removable" :true }
+ ]
+}
+ שדה משמעות 
+ number מספר הטלפון (פורמט 0… ). 
+ isPrimary true למספר הראשי של המערכת. 
+ label תווית חופשית שניתנה למספר (יכולה להיות ריקה). 
+ routesTo extension — המספר מנותב ישירות לשלוחה שבשדות הבאים. root — המספר נכנס לעץ הראשי. missing — הוגדר יעד אך השלוחה כבר לא קיימת; המתקשרים נכנסים לעץ הראשי עד שיוגדר יעד חדש. 
+ extensionId מזהה שלוחת היעד — אותו ערך שמשמש כ- extensionId= בשאר ה-API. ריק כש- routesTo אינו extension . 
+ path נתיב-החיוג של שלוחת היעד מהשורש, למשל "1/2" . אותו פורמט שמקובל בפרמטר path= . 
+ extName / extType שם וסוג שלוחת היעד ( menu , audioPlayer , simpleRouting , queueRouting , api …). 
+ callerIds זיהויים יוצאים מאושרים שאינם מספרי המערכת (מספרים שאימתתם בעצמכם). אותה רשימה כמו ב- callerIdsList . 
+ קריאה-בלבד. numbers כולל את כל המספרים של המערכת — הראשי וכל המספרים הנוספים. מספרי המערכת מאושרים תמיד כזיהוי יוצא ולכן לא חוזרים ב- callerIds . שינוי יעד של מספר נעשה בהגדרות המספרים בממשק (או ב- number_target ב-API החשבון).
+ callerIdsList חדש 
+ GET action=callerIdsList 
+ זיהויים יוצאים מאושרים שאינם מספרי המערכת — מספרים שהוספתם ואימתתם: למערכת (בממשק, או ב- addDid ב-API הקמפיינים) או לטראנק ה-SIP של המערכת.
+ מפתח הסבר חובה 
+ ללא פרמטרים. 
+ תגובה
+ // GET ivrFilesApi.php?action=callerIdsList&apiKey=... 
+{
+ "status" : "Ok" ,
+ "count" : 2,
+ "callerIds" : [
+ { "phone" : "0501234567" , "addedAt" : "2026-05-03 01:35:31" , "source" :[ "system" ], "usedBySip" :[], "trunkDefault" :false, "removable" :true },
+ { "phone" : "0539876543" , "addedAt" : "2026-09-14 10:02:11" , "source" :[ "system" ], "usedBySip" :[ "משרד" ], "trunkDefault" :false, "removable" :false },
+ { "phone" : "0533730000" , "addedAt" : "2026-11-10 09:13:46" , "source" :[ "sipTrunk" ], "usedBySip" :[], "trunkDefault" :false, "removable" :true }
+ ]
+}
+ שדה משמעות 
+ phone הזיהוי היוצא. 
+ addedAt מתי אושר ( YYYY-MM-DD HH:MM:SS ; ריק ברשומות ישנות). 
+ source איפה הזיהוי מאושר: system (קמפיינים, Click-to-Call, שלוחות SIP) ו/או sipTrunk (שיחות שיוצאות דרך טראנק ה-SIP של המערכת). 
+ usedBySip שמות שלוחות SIP שמציגות כרגע את המספר הזה כזיהוי שלהן. 
+ trunkDefault true כשזה זיהוי ברירת המחדל של טראנק ה-SIP. 
+ removable false כל עוד שלוחת SIP משתמשת בו, או כשהוא זיהוי ברירת המחדל של הטראנק — קודם משנים את זה. 
+ callerIdRemove חדש 
+ GET action=callerIdRemove 
+ הסרת זיהוי יוצא מאושר — מהמערכת ומטראנק ה-SIP, בכל מקום שבו הוא מאושר. אחרי ההסרה אי אפשר יותר להשתמש במספר כזיהוי יוצא; הוספה מחדש עוברת את האימות הרגיל ( addDid ).
+ מפתח הסבר חובה 
+ phone הזיהוי להסרה (מתקבל 05… , 9725… וגם +9725… ). כן 
+ תגובה
+ // GET ivrFilesApi.php?action=callerIdRemove&phone=0501234567&apiKey=... 
+{ "status" : "Ok" , "removed" : "0501234567" , "callerIds" : [ … ] }
+ errorCode משמעות 
+ 1 חסר phone . 
+ 2 המספר אינו זיהוי יוצא מאושר של המערכת. 
+ 3 זה מספר של המערכת — אי אפשר להסיר אותו כזיהוי יוצא. 
+ 4 שלוחות SIP משתמשות בזיהוי הזה (השמות מוחזרים ב- usedBySip ). קודם משנים את הזיהוי שלהן. 
+ 5 זה זיהוי ברירת המחדל של טראנק ה-SIP. קודם בוחרים לטראנק זיהוי ברירת מחדל אחר. 
+ callerIds בתגובה הוא הרשימה המעודכנת אחרי ההסרה.
+ Dropdowns דינמיים
+ getOptions / getOptions2
+ GET action=getOptions | getOptions2 
+ משמש לטעינת תוכן של כל שדה שהוגדר ב- fields עם options:"GET" 
+ ו- optionsKey:"<key>" .
+ מפתח הסבר חובה 
+ list מפתח אחד או כמה מפתחות מופרדים בפסיק חובה 
+ מפתחות נתמכים
+ streamId , templateId , musicOnHold ,
+ ivrForms , mailingLists , creditCardId ,
+ routerId , filesList , kesherPhone ,
+ playTemplate , fileTags .
+ דוגמה
+ // GET ivrFilesApi.php?action=getOptions2&list=fileTags,mailingLists 
+{
+ "fileTags" : [ { "value" : "5" , "SYSvalue" : "5" , "label" : "ברכות" } ],
+ "mailingLists" : [ { "value" : "1000" , "label" : "1000-כללי" } ]
+}
+ סיכום מהיר — כל הפעולות
+ קבוצה action method תיאור 
+ Schema חדש 
+ getUiSchema GET bootstrap יחיד לכל הנתונים 
+ getExtensionTypes GET סוגי שלוחות 
+ getFieldsSchema GET הגדרות שדות 
+ getFormLayout GET מבנה טופס לפי סוג 
+ getAccountSettings GET use_rh, rh_max, ivrSystemPhone 
+ getMailingLists GET רשימות תפוצה כ-JSON 
+ getExtensionPath GET breadcrumb לשלוחה 
+ עץ 
+ foldersList GET עץ השלוחות 
+ folderCopy GET העתקה רקורסיבית 
+ folderMove GET העברה 
+ folderDelete GET מחיקה 
+ קבצים 
+ filesList GET קבצים בשלוחה 
+ uploadFile POST multipart העלאה (עד 60MB) 
+ uploadInit POST/GET פתיחת סשן העלאה-בחתיכות 
+ uploadChunk POST multipart שליחת חתיכה 
+ uploadComplete POST/GET הרכבה + אימות + אחסון 
+ uploadStatus GET אילו חתיכות התקבלו (לחידוש) 
+ uploadAbort POST/GET ביטול סשן 
+ fileDelete GET מחיקה רכה 
+ fileRename GET שינוי שם 
+ fileTagging GET תיוג 
+ fileOrderSet GET שינוי מיקום 
+ fileCopy / fileMove GET העתקה/העברה לשלוחה אחרת 
+ musicOnHoldList GET מוזיקה בהמתנה: רשימה 
+ musicOnHoldSetDefault GET/POST מוזיקה בהמתנה: בחירת הפעילה 
+ הגדרות 
+ folderSettings GET טעינת שלוחה 
+ extensionSet POST שמירה / יצירה 
+ הרשאות securitySet POST שמירת תנאים 
+ הודעות מערכת 
+ systemMessagesList GET כל הקודים + התאמות 
+ getCustomMessages GET רצף לקוד 
+ saveCustomMessagesBeta POST JSON שמירת רצף 
+ updateSystemMessage POST שמירה בודדת (ישן) 
+ deleteSystemMessage POST מחיקה 
+ דוחות חדש 
+ fileListenReport GET דוח האזנה לקובץ (נטישה, השלמה, פעולות) 
+ extensionVisits GET דוח כניסה לשלוחות (משפך, מעברים, מסלולים) 
+ activeCalls GET שיחות פעילות כעת — שלוחה נוכחית, מסלול, קובץ מושמע ומפנה השיחה 
+ callHistory GET היסטוריית שיחות — שורה לכל שיחה בטווח-זמן (מתקשר, משך, שלוחת כניסה/סיום) 
+ callJourney GET מהלך שיחה בודדת — שלוחות שנכנס אליהן, זמן-שהייה וקבצים שהואזנו 
+ outboundCalls GET שיחות יוצאות — שלוחות SIP וניתובים מתוך שיחות קמפיין — יעד, סטטוס, משך והקלטה; גם לפי callId 
+ numbersList GET כל מספרי הטלפון של המערכת, השלוחה שאליה כל מספר מנותב, והזיהויים המאושרים הנוספים 
+ callerIdsList GET זיהויים יוצאים מאושרים שאינם מספרי המערכת 
+ callerIdRemove GET הסרת זיהוי יוצא מאושר 
+ Dropdowns getOptions / getOptions2 GET תוכן דינמי ל- options:"GET" 
+ המלצה: בטעינת הממשק הראשונה — תבצעו קריאה אחת ל- getUiSchema 
+ ו- foldersList במקביל ( Promise.all ), ותאחסנו ב-cache.
+ כל יתר הפעולות ממשיכות בדרישה לפי צורך (הגדרת שלוחה, קובץ וכו').
+ טכנוליין © 2026 — מדריך API ניהול שלוחות
