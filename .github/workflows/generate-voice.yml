@@ -21,6 +21,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           VOICES: ${{ inputs.voices }}
       - name: commit audio
+        if: always()
         run: |
           git config user.name "voice-bot"
           git config user.email "voice-bot@users.noreply.github.com"

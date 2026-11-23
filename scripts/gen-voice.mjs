@@ -4,26 +4,23 @@ import { writeFileSync, mkdirSync } from "node:fs";
 
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) throw new Error("חסר GEMINI_API_KEY");
-const VOICE = process.env.VOICE || "Charon";
+const VOICE = process.env.VOICE || "Algenib";
 const STYLE = "קרא בעברית בקול גברי חם, שמח ומזמין, בטון שיווקי ואנושי, בקצב נעים עם הדגשות, כמו קריין בחברת נופש ברמה גבוהה. ";
 
-const CLIPS = {
-  welcome:
-    "נַיְיחָא! שבת של נחת בְּמִירוֹן. להזמנת דירה, הקישו אחת. לבירורים על הזמנה, הקישו שתיים. לשירות, הקישו שלוש. להשארת הודעה, הקישו ארבע.",
-  queue:
-    "כל הנציגים שלנו עסוקים כרגע בשיחה אחרת. אנא המתינו על הקו, ונשיב לכם בהקדם. תודה על הסבלנות!",
-};
-
-// VOICES="Charon,Puck" מייצר דוגמאות להשוואה ב-public/audio/samples
+import { readFileSync, existsSync } from "node:fs";
+const ALL = JSON.parse(readFileSync("src/lib/pbx/clips.json", "utf8"));
+// VOICES="Charon,Puck" מייצר דוגמאות להשוואה; אחרת כל ההקראות הקבועות בקול VOICE (ברירת מחדל Algenib)
 const SAMPLES = (process.env.VOICES || "").split(",").filter(Boolean);
+const first = ALL.find((c) => c.key === "welcome");
 const jobs = SAMPLES.length
-  ? [
-      ...SAMPLES.map((v) => ({ voice: v, name: `samples/welcome-${v}`, text: CLIPS.welcome })),
-      { voice: SAMPLES[0], name: `samples/queue-${SAMPLES[0]}`, text: CLIPS.queue },
-    ]
-  : Object.entries(CLIPS).map(([name, text]) => ({ voice: VOICE, name, text }));
+  ? SAMPLES.map((v) => ({ voice: v, name: `samples/welcome-${v}`, text: first.spoken ?? first.text }))
+  : ALL.map((c) => ({ voice: VOICE, name: c.key === "welcome" ? "clips/welcome-voice" : `clips/${c.key}`, text: c.spoken ?? c.text }));
+mkdirSync("public/audio/clips", { recursive: true });
 mkdirSync("public/audio/samples", { recursive: true });
+let failed = 0;
 for (const { voice, name, text } of jobs) {
+  if (existsSync(`public/audio/${name}.mp3`)) continue;
+  try {
   // המכסה החינמית מוגבלת בקצב: ממתינים וחוזרים על 429 עד 4 פעמים
   let res;
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -50,4 +47,6 @@ for (const { voice, name, text } of jobs) {
   // PCM 16-bit mono 24kHz -> mp3 מנורמל
   execFileSync("ffmpeg", ["-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", `/tmp/${name.replace('/', '_')}.pcm`, "-af", "loudnorm=I=-16", "-ar", "22050", "-b:a", "64k", `public/audio/${name}.mp3`], { stdio: "inherit" });
   console.log("נוצר", name);
+  } catch (e) { failed++; console.log("נכשל", name, String(e).slice(0, 200)); }
 }
+if (failed) console.log(`נכשלו ${failed}. להריץ שוב להשלמה.`);
