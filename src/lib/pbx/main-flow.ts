@@ -1,5 +1,5 @@
 import { describeStay } from "./speech";
-import { hangup, menu, normPhone, say, type PbxModule, type PbxParams, type PbxResponse } from "./types";
+import { hangup, menu, pbxFiles, normPhone, say, type PbxModule, type PbxParams, type PbxResponse } from "./types";
 
 export interface MainSettings { secretary: string; service: string; routerId: string; serviceRouterId?: string; musicUrl: string; welcomeAudioUrl?: string }
 export interface MainDeps {
@@ -69,7 +69,7 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
   }
   if (q.main === "4") {
     return [{ type: "record", name: "msg", max: 120, min: 2, confirm: "no", hangupSave: "yes",
-      files: [{ text: "אנא השאירו הודעה אחרי הצליל, כולל שם ומספר טלפון, ונחזור אליכם בהקדם." }] }];
+      files: pbxFiles("אנא השאירו הודעה אחרי הצליל, כולל שם ומספר טלפון, ונחזור אליכם בהקדם.") }];
   }
   return hangup();
 }
