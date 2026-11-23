@@ -58,9 +58,7 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
   if (q.main === undefined || q.main === "ERROR") {
     const hello: PbxModule[] = [];
     if (s.musicUrl) hello.push({ type: "simpleMessage", files: [{ fileLink: s.musicUrl }] });
-    // ברכה עם מנגינה שמסיימת אותה, ואחריה האפשרויות
-    hello.push(say("שלום וברוכים הבאים לנַיְיחָא. שבת של נחת במירון."));
-    const m = menu("main", "להזמנת דירה הקישו 1. לשמיעת ההזמנות שלכם הקישו 2. לשירות לקוחות הקישו 3. להשארת הודעה הקישו 4.", "1234", true);
+    const m = menu("main", "שלום וברוכים הבאים לנַיְיחָא. שבת של נחת במירון. להזמנת דירה הקישו 1. לשמיעת ההזמנות שלכם הקישו 2. לשירות לקוחות הקישו 3. להשארת הודעה הקישו 4.", "1234", true);
     // קריינות מוקלטת מראש (קול אנושי) מחליפה את ההקראה הממוכנת כשהוגדר קישור
     if (s.welcomeAudioUrl && m.type === "simpleMenu") m.files = [{ fileLink: s.welcomeAudioUrl }];
     hello.push(m);

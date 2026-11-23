@@ -5,16 +5,16 @@ import { writeFileSync, mkdirSync } from "node:fs";
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) throw new Error("חסר GEMINI_API_KEY");
 const VOICE = process.env.VOICE || "Algenib";
-const STYLE = "קרא בעברית בהגייה חסידית אשכנזית: קמץ נשמע כמו או, תי\"ו רפויה נשמעת כמו ס, והטעמה במלעיל (בהברה לפני האחרונה). בקול גברי חם, שמח ומזמין, בקצב נעים, כמו חסיד שמקבל אורחים בכבוד. ";
+const STYLE = "קרא בעברית בהגייה חסידית אשכנזית: קמץ נשמע כמו או, תי\"ו רפויה נשמעת כמו ס, והטעמה במלעיל (בהברה לפני האחרונה). בקול גברי חם, שמח ומזמין, בקצב נעים, כמו חסיד שמקבל אורחים בכבוד. את המשפט הראשון (עד "במירון") סיים בנימה יורדת ברורה של סוף משפט, ואחר כך המשך לאפשרויות בקצב אחיד. ";
 
 import { readFileSync, existsSync } from "node:fs";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/clips.json", "utf8"));
 // VOICES="Charon,Puck" מייצר דוגמאות להשוואה; אחרת כל ההקראות הקבועות בקול VOICE (ברירת מחדל Algenib)
 const SAMPLES = (process.env.VOICES || "").split(",").filter(Boolean);
-const first = ALL.find((c) => c.key === "welcome_intro");
+const first = ALL.find((c) => c.key === "welcome");
 const jobs = SAMPLES.length
   ? SAMPLES.map((v) => ({ voice: v, name: `samples/welcome-${v}`, text: first.spoken ?? first.text }))
-  : ALL.map((c) => ({ voice: VOICE, name: c.key === "welcome_intro" ? "clips/welcome_intro-voice" : `clips/${c.key}`, text: c.spoken ?? c.text }));
+  : ALL.map((c) => ({ voice: VOICE, name: c.key === "welcome" ? "clips/welcome-voice" : `clips/${c.key}`, text: c.spoken ?? c.text }));
 mkdirSync("public/audio/clips", { recursive: true });
 mkdirSync("public/audio/samples", { recursive: true });
 let failed = 0;
