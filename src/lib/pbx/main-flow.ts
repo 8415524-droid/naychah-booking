@@ -1,4 +1,5 @@
 import { describeStay } from "./speech";
+import { afterRound, lastRound, queueRound, recordModule, type QueueDeps } from "./queue";
 import { hangup, menu, pbxFiles, normPhone, say, type PbxModule, type PbxParams, type PbxResponse } from "./types";
 
 export interface MainSettings { secretary: string; service: string; routerId: string; serviceRouterId?: string; musicUrl: string; welcomeAudioUrl?: string }
@@ -8,6 +9,7 @@ export interface MainDeps {
   /** הזמנות עתידיות של המתקשר (עד 3), עם סכומים בשקלים, לשלוחת "ההזמנה שלי". */
   bookingsByPhone(phone: string): Promise<MyBooking[]>;
   /** שמירת הודעה קולית שהמתקשר השאיר (שלוחה 4). */
+  queue?: QueueDeps;
   saveMessage?(m: { phone: string; fileId: string; fileName: string; seconds: number }): Promise<void>;
 }
 export interface MyBooking {
@@ -29,7 +31,7 @@ const route = (name: string, phone: string): PbxModule =>
   ({ type: "simpleRouting", name, dialPhone: normPhone(phone), routingMusic: "yes", ringSec: 30 });
 
 function toSecretary(s: MainSettings, name: string): PbxModule[] {
-  if (s.routerId) return [{ type: "queueRouting", name: "queueResult", routerId: s.routerId, continueOnFail: "yes" }];
+  if (s.routerId && normPhone(s.secretary).length >= 9) return [queueRound(1, [normPhone(s.secretary)])];
   if (normPhone(s.secretary).length >= 9) return [route(name, s.secretary)];
   return [say("הקו אינו זמין כרגע. אנא נסו שוב מאוחר יותר."), hangup()];
 }
@@ -40,14 +42,17 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
     await deps.saveMessage({ phone: normPhone(q.PBXphone), fileId: q.FILEID_msg, fileName: q.FILE_msg ?? q.msg ?? "", seconds: Number(q.DURATION_msg ?? 0) || 0 });
     return q.PBXcallStatus === "HANGUP" ? hangup() : [say("תודה, ההודעה נשמרה ונחזור אליכם בהקדם."), hangup()];
   }
-  // התור לא הצליח לחבר נציג (אין נציגים, אף אחד לא ענה, או שגיאה): מציעים להשאיר הודעה
-  if (["NOAGENTS", "NOANSWER", "ERROR"].includes(q.queueResult ?? "") && q.PBXcallStatus !== "HANGUP") {
-    console.log("pbx queue result", q.queueResult, q.STEXT_queueResult ?? "");
-    return [{ type: "record", name: "msg", max: 120, min: 2, confirm: "no", hangupSave: "yes",
-      files: pbxFiles("כרגע לא ניתן להשיג נציג. אנא השאירו הודעה אחרי הצליל, כולל שם ומספר טלפון, ונחזור אליכם בהקדם.") }];
+  // חזרה מסבב בתור ההמתנה (אין נציג פנוי): "הנך מספר X", הצעת הודעה, או סבב נוסף
+  if (q.PBXcallStatus !== "HANGUP" && lastRound(q) > 0) {
+    const set = await deps.settings();
+    const isService = q.main === "3" && set.serviceRouterId;
+    const phone = normPhone(isService ? set.service : set.secretary);
+    const out = await afterRound(q, isService ? "service" : "booking", phone ? [phone] : [], deps.queue);
+    if (out) return out;
   }
+  if (q.PBXcallStatus === "HANGUP" && q.PBXcallId) await deps.queue?.leave(q.PBXcallId);
   // חזרה מניתוב או סיום שיחה
-  if (q.PBXcallStatus === "HANGUP" || q.route1 !== undefined || q.queueResult !== undefined || q.route2 !== undefined || q.route3 !== undefined) return hangup();
+  if (q.PBXcallStatus === "HANGUP" || q.route1 !== undefined || lastRound(q) > 0 || q.route2 !== undefined || q.route3 !== undefined) return hangup();
   const s = await deps.settings();
 
   if (q.main === undefined || q.main === "ERROR") {
@@ -69,13 +74,12 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
     return out;
   }
   if (q.main === "3") {
-    if (s.serviceRouterId) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), { type: "queueRouting", name: "queueResult", routerId: s.serviceRouterId, continueOnFail: "yes" }];
+    if (s.serviceRouterId && normPhone(s.service).length >= 9) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), queueRound(1, [normPhone(s.service)])];
     if (normPhone(s.service).length >= 9) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), route("route3", s.service)];
     return [say("מעביר אותך לנציג."), ...toSecretary(s, "route3")];
   }
   if (q.main === "4") {
-    return [{ type: "record", name: "msg", max: 120, min: 2, confirm: "no", hangupSave: "yes",
-      files: pbxFiles("אנא השאירו הודעה אחרי הצליל, כולל שם ומספר טלפון, ונחזור אליכם בהקדם.") }];
+    return [recordModule("אנא השאירו הודעה אחרי הצליל, כולל שם ומספר טלפון, ונחזור אליכם בהקדם.")];
   }
   return hangup();
 }

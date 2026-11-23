@@ -81,8 +81,8 @@ describe("קו לקוחות", () => {
     expect(r.at(-1)).toMatchObject({ type: "simpleRouting", dialPhone: "0501112222", routingMusic: "yes" });
   });
   it("תור המתנה כשמוגדר ראוטר", async () => {
-    const r: any = await mainFlow({ main: "1" }, { ...d, settings: async () => ({ secretary: "", service: "", routerId: "77", musicUrl: "" }) });
-    expect(r.at(-1)).toMatchObject({ type: "queueRouting", routerId: "77" });
+    const r: any = await mainFlow({ main: "1" }, { ...d, settings: async () => ({ secretary: "0501112222", service: "", routerId: "77", musicUrl: "" }) });
+    expect(r.at(-1)).toMatchObject({ type: "queueRouting", name: "queueResult1", phones: ["0501112222"] });
   });
   it("בירור מקריא הזמנה קיימת", async () => {
     expect(texts(await mainFlow({ main: "2", PBXphone: "0521111111" }, d))).toContain("הגפן");
@@ -114,8 +114,14 @@ describe("קו לקוחות", () => {
     expect(out.at(-1)).toMatchObject({ type: "hangup" });
   });
 
-  it("תור שלא ענה מציע להשאיר הודעה", async () => {
-    const r: any = await mainFlow({ main: "1", queueResult: "NOAGENTS" }, d);
-    expect(r[0]).toMatchObject({ type: "record", name: "msg" });
+  it("תור: אחרי סבב בלי מענה אומרים מספר בתור ומציעים הודעה, ואז ממשיכים או מקליטים", async () => {
+    const dq = { ...d, settings: async () => ({ secretary: "0501112222", service: "", routerId: "77", musicUrl: "" }), queue: { position: async () => 3, leave: async () => {} } };
+    const r1: any = await mainFlow({ main: "1", PBXcallId: "c1", queueResult1: "NOANSWER" }, dq);
+    expect(r1[0].files[0].text).toContain("מספר 3");
+    expect(r1[1]).toMatchObject({ type: "simpleMenu", name: "waitq1" });
+    const r2: any = await mainFlow({ main: "1", PBXcallId: "c1", queueResult1: "NOANSWER", waitq1: "4" }, dq);
+    expect(r2[0]).toMatchObject({ type: "record", name: "msg" });
+    const r3: any = await mainFlow({ main: "1", PBXcallId: "c1", queueResult1: "NOANSWER", waitq1: "ERROR" }, dq);
+    expect(r3[0]).toMatchObject({ type: "queueRouting", name: "queueResult2" });
   });
 });
