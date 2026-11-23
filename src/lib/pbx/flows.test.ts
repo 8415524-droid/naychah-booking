@@ -76,7 +76,7 @@ describe("קו לקוחות", () => {
     latestBooking: async (p) => (p === "0521111111" ? { apartment_name: "הגפן", check_in: "2026-12-03", check_out: "2026-12-05", status: "confirmed" } : null),
   };
   it("תפריט ראשי וניתוב למזכירה", async () => {
-    expect(texts(await mainFlow({}, d))).toContain("ברוכים הבאים לנייחא");
+    expect(texts(await mainFlow({}, d))).toContain("ברוכים הבאים לנִיחָא");
     const r: any = await mainFlow({ main: "1" }, d);
     expect(r.at(-1)).toMatchObject({ type: "simpleRouting", dialPhone: "0501112222", routingMusic: "yes" });
   });

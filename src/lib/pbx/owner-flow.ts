@@ -42,7 +42,7 @@ export async function ownerFlow(q: PbxParams, deps: OwnerDeps): Promise<PbxRespo
 
   let owner = await deps.findOwnerByPhone(normPhone(q.PBXphone));
   if (!owner) {
-    if (q.pin === undefined) return digits("pin", "ברוכים הבאים לקו בעלי הדירות של נייחא. הקישו את הקוד האישי שלכם.", 3, 8);
+    if (q.pin === undefined) return digits("pin", "ברוכים הבאים לקו בעלי הדירות של נִיחָא. הקישו את הקוד האישי שלכם.", 3, 8);
     owner = await deps.findOwnerByPin(q.pin);
     if (!owner) return [say("הקוד אינו מזוהה. להתראות."), hangup()];
   }
