@@ -6,6 +6,7 @@ const FIELDS: { key: string; label: string; hint: string }[] = [
   { key: "secretary_phone", label: "טלפון המזכירה (שלוחה 1)", hint: "אליו מועברות שיחות הזמנה כשאין תור" },
   { key: "service_phone", label: "טלפון שירות לקוחות (שלוחה 3)", hint: "אם ריק, עובר למזכירה" },
   { key: "queue_router_id", label: "מזהה תור המתנה בטכנוליין", hint: "אם מוגדר, שלוחה 1 מכניסה לתור במקום לחייג למזכירה" },
+  { key: "welcome_audio_url", label: "קישור לקריינות הפתיח (mp3 בקול אנושי)", hint: "מחליף את הפתיח הממוכן" },
   { key: "music_url", label: "קישור לקובץ מוזיקת מירון (mp3)", hint: "מושמע בפתיחת השיחה" },
 ];
 

@@ -1,7 +1,7 @@
 import { describeStay } from "./speech";
 import { hangup, menu, normPhone, say, type PbxModule, type PbxParams, type PbxResponse } from "./types";
 
-export interface MainSettings { secretary: string; service: string; routerId: string; musicUrl: string }
+export interface MainSettings { secretary: string; service: string; routerId: string; musicUrl: string; welcomeAudioUrl?: string }
 export interface MainDeps {
   settings(): Promise<MainSettings>;
   latestBooking(phone: string): Promise<{ apartment_name: string; check_in: string; check_out: string; status: string } | null>;
@@ -40,7 +40,10 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
   if (q.main === undefined || q.main === "ERROR") {
     const hello: PbxModule[] = [];
     if (s.musicUrl) hello.push({ type: "simpleMessage", files: [{ fileLink: s.musicUrl }] });
-    hello.push(menu("main", "ברוכים הבאים לנִיחָא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3.", "123", true));
+    const m = menu("main", "ברוכים הבאים לנִיחָא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3.", "123", true);
+    // קריינות מוקלטת מראש (קול אנושי) מחליפה את ההקראה הממוכנת כשהוגדר קישור
+    if (s.welcomeAudioUrl && m.type === "simpleMenu") m.files = [{ fileLink: s.welcomeAudioUrl }];
+    hello.push(m);
     return hello;
   }
   if (q.main === "1") return [say("מעביר אותך להזמנת דירה. אנא המתינו."), ...toSecretary(s, "route1")];
