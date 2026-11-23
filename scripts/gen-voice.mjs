@@ -2,8 +2,9 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 
-const KEY = process.env.GEMINI_API_KEY;
-if (!KEY) throw new Error("חסר GEMINI_API_KEY");
+const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean); // שני מפתחות מחלקים את העומס על מגבלת הקצב
+if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
+let keyIdx = 0;
 const VOICE = process.env.VOICE || "Algenib";
 const STYLE = "קרא בעברית בהגייה חסידית אשכנזית: קמץ נשמע כמו או, תי\"ו רפויה נשמעת כמו ס, והטעמה במלעיל (בהברה לפני האחרונה). בקול גברי חם, שמח ומזמין, בקצב נעים, כמו חסיד שמקבל אורחים בכבוד. את המשפט הראשון (עד המילה במירון) סיים בנימה יורדת ברורה של סוף משפט, ואחר כך המשך לאפשרויות בקצב אחיד. ";
 
@@ -19,6 +20,7 @@ mkdirSync("public/audio/clips", { recursive: true });
 mkdirSync("public/audio/samples", { recursive: true });
 let failed = 0;
 for (const { voice, name, text } of jobs) {
+  keyIdx++;
   if (existsSync(`public/audio/${name}.mp3`)) continue;
   try {
   // המכסה החינמית מוגבלת בקצב: ממתינים וחוזרים על 429 עד 4 פעמים
@@ -26,7 +28,7 @@ for (const { voice, name, text } of jobs) {
   for (let attempt = 0; attempt < 5; attempt++) {
     res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": KEY },
+      headers: { "content-type": "application/json", "x-goog-api-key": KEYS[(keyIdx + attempt) % KEYS.length] },
       body: JSON.stringify({
         contents: [{ parts: [{ text: STYLE + text }] }],
         generationConfig: {
