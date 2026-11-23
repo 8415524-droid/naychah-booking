@@ -17,7 +17,7 @@ function deps(over: Partial<OwnerDeps> = {}): OwnerDeps {
   };
 }
 const mods = (r: any) => (Array.isArray(r) ? r : [r]);
-const clipText = (f: any) => f.text ?? (clipsJson as { key: string; text: string }[]).find((c) => f.fileName === `${c.key}_v2`)?.text;
+const clipText = (f: any) => f.text ?? (clipsJson as { key: string; text: string }[]).find((c) => f.fileName === `${c.key}_v3`)?.text;
 const texts = (r: any) => mods(r).flatMap((m: any) => (m.files ?? []).map(clipText)).join(" | ");
 
 describe("תאריכים", () => {
