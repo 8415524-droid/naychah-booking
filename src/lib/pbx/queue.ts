@@ -1,8 +1,8 @@
-// תור המתנה משלנו: מחכים לנציג כ-20 שניות בכל סבב, ובין הסבבים אומרים "הנך מספר X" ומציעים להשאיר הודעה.
+// תור המתנה משלנו: מחכים לנציג דקה בכל סבב (מוזיקה), ובסוף כל דקה, ובין הסבבים אומרים "הנך מספר X" ומציעים להשאיר הודעה.
 import { menu, pbxFiles, say, type PbxModule, type PbxParams } from "./types";
 
-export const QUEUE_ROUND_SEC = 20;
-export const QUEUE_MAX_ROUNDS = 12;
+export const QUEUE_ROUND_SEC = 60;
+export const QUEUE_MAX_ROUNDS = 8;
 export const RECORD_BUSY_TEXT = "כרגע לא ניתן להשיג נציג. אנא השאירו הודעה אחרי הצליל, כולל שם ומספר טלפון, ונחזור אליכם בהקדם.";
 const FAIL = ["NOAGENTS", "NOANSWER", "ERROR"];
 
