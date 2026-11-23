@@ -5,7 +5,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) throw new Error("חסר GEMINI_API_KEY");
 const VOICE = process.env.VOICE || "Algenib";
-const STYLE = "קרא בעברית בהגייה חסידית אשכנזית: קמץ נשמע כמו או, תי\"ו רפויה נשמעת כמו ס, והטעמה במלעיל (בהברה לפני האחרונה). בקול גברי חם, שמח ומזמין, בקצב נעים, כמו חסיד שמקבל אורחים בכבוד. את המשפט הראשון (עד "במירון") סיים בנימה יורדת ברורה של סוף משפט, ואחר כך המשך לאפשרויות בקצב אחיד. ";
+const STYLE = "קרא בעברית בהגייה חסידית אשכנזית: קמץ נשמע כמו או, תי\"ו רפויה נשמעת כמו ס, והטעמה במלעיל (בהברה לפני האחרונה). בקול גברי חם, שמח ומזמין, בקצב נעים, כמו חסיד שמקבל אורחים בכבוד. את המשפט הראשון (עד המילה במירון) סיים בנימה יורדת ברורה של סוף משפט, ואחר כך המשך לאפשרויות בקצב אחיד. ";
 
 import { readFileSync, existsSync } from "node:fs";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/clips.json", "utf8"));
