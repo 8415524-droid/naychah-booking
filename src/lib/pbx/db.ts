@@ -49,9 +49,9 @@ export function ownerDeps(sb: SupabaseClient): OwnerDeps {
 export function mainDeps(sb: SupabaseClient): MainDeps {
   return {
     async settings() {
-      const { data } = await sb.from("settings").select("key, value").in("key", ["secretary_phone", "service_phone", "queue_router_id", "music_url"]);
+      const { data } = await sb.from("settings").select("key, value").in("key", ["secretary_phone", "service_phone", "queue_router_id", "music_url", "welcome_audio_url"]);
       const m = Object.fromEntries((data ?? []).map((r) => [r.key, String(r.value ?? "")]));
-      return { secretary: m.secretary_phone ?? "", service: m.service_phone ?? "", routerId: m.queue_router_id ?? "", musicUrl: m.music_url ?? "" };
+      return { secretary: m.secretary_phone ?? "", service: m.service_phone ?? "", routerId: m.queue_router_id ?? "", musicUrl: m.music_url ?? "", welcomeAudioUrl: m.welcome_audio_url ?? "" };
     },
     async latestBooking(phone) {
       if (phone.length < 9) return null;
