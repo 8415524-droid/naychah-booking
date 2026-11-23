@@ -61,5 +61,19 @@ export function mainDeps(sb: SupabaseClient): MainDeps {
         .eq("customer_id", c.id).in("status", ["confirmed", "hold"]).order("check_in", { ascending: false }).limit(1).maybeSingle();
       return data ? { apartment_name: (data as any).apartments?.name ?? "", check_in: data.check_in, check_out: data.check_out, status: data.status } : null;
     },
+    async bookingsByPhone(phone) {
+      if (phone.length < 9) return [];
+      const { data: c } = await sb.from("customers").select("id").eq("phone", phone).maybeSingle();
+      if (!c) return [];
+      const { data } = await sb.from("bookings")
+        .select("id, check_in, check_out, status, total_price, deposit_required, apartments(name), payments(amount)")
+        .eq("customer_id", c.id).in("status", ["confirmed", "hold"])
+        .gte("check_out", nowInJerusalem().slice(0, 10)).order("check_in").limit(3);
+      return (data ?? []).map((b: any) => ({
+        apartment_name: b.apartments?.name ?? "", check_in: b.check_in, check_out: b.check_out, status: b.status,
+        total: b.total_price, deposit_required: b.deposit_required,
+        paid: (b.payments ?? []).reduce((a: number, p: any) => a + Number(p.amount), 0),
+      }));
+    },
   };
 }

@@ -5,6 +5,22 @@ export interface MainSettings { secretary: string; service: string; routerId: st
 export interface MainDeps {
   settings(): Promise<MainSettings>;
   latestBooking(phone: string): Promise<{ apartment_name: string; check_in: string; check_out: string; status: string } | null>;
+  /** הזמנות עתידיות של המתקשר (עד 3), עם סכומים בשקלים, לשלוחת "ההזמנה שלי". */
+  bookingsByPhone(phone: string): Promise<MyBooking[]>;
+}
+export interface MyBooking {
+  apartment_name: string; check_in: string; check_out: string; status: string;
+  total: number; deposit_required: number; paid: number;
+}
+
+/** הקראת הזמנה אחת: דירה, מועד, מחיר ומצב תשלום. */
+export function readBooking(b: MyBooking): string {
+  const head = `דירה ${b.apartment_name}, ${describeStay(b.check_in, b.check_out)}. מחיר כולל ${b.total} שקלים.`;
+  if (b.status === "hold") {
+    return `${head} ההזמנה עדיין לא סגורה, והיא ממתינה לתשלום מקדמה של ${b.deposit_required} שקלים.`;
+  }
+  const left = Math.max(0, b.total - b.paid);
+  return `${head} שולם ${b.paid} שקלים, ונותר לשלם ${left} שקלים.`;
 }
 
 const route = (name: string, phone: string): PbxModule =>
@@ -29,11 +45,12 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
   }
   if (q.main === "1") return [say("מעביר אותך להזמנת דירה. אנא המתינו."), ...toSecretary(s, "route1")];
   if (q.main === "2") {
-    const b = await deps.latestBooking(normPhone(q.PBXphone));
-    const intro = b
-      ? [say(`נמצאה הזמנה לדירה ${b.apartment_name}, ${describeStay(b.check_in, b.check_out)}. מעביר אותך לנציג.`)]
-      : [say("לא נמצאה הזמנה על המספר שממנו התקשרתם. מעביר אותך לנציג.")];
-    return [...intro, ...toSecretary(s, "route2")];
+    const list = await deps.bookingsByPhone(normPhone(q.PBXphone));
+    if (!list.length) return [say("לא נמצאה הזמנה על המספר שממנו התקשרתם. מעביר אותך לנציג."), ...toSecretary(s, "route2")];
+    const out: PbxModule[] = [say(list.length === 1 ? "נמצאה הזמנה אחת על שמכם." : `נמצאו ${list.length} הזמנות על שמכם.`)];
+    for (const b of list) out.push(say(readBooking(b)));
+    out.push(say("מעביר אותך לנציג."), ...toSecretary(s, "route2"));
+    return out;
   }
   if (q.main === "3") {
     if (normPhone(s.service).length >= 9) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), route("route3", s.service)];
