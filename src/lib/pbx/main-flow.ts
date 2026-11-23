@@ -49,10 +49,10 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
   if (q.main === "1") return [say("מעביר אותך להזמנת דירה. אנא המתינו."), ...toSecretary(s, "route1")];
   if (q.main === "2") {
     const list = await deps.bookingsByPhone(normPhone(q.PBXphone));
-    if (!list.length) return [say("לא נמצאה הזמנה על המספר שממנו התקשרתם. מעביר אותך לנציג."), ...toSecretary(s, "route2")];
+    if (!list.length) return [say("לא נמצאה הזמנה על המספר שממנו התקשרתם."), hangup()];
     const out: PbxModule[] = [say(list.length === 1 ? "נמצאה הזמנה אחת על שמכם." : `נמצאו ${list.length} הזמנות על שמכם.`)];
     for (const b of list) out.push(say(readBooking(b)));
-    out.push(say("מעביר אותך לנציג."), ...toSecretary(s, "route2"));
+    out.push(hangup());
     return out;
   }
   if (q.main === "3") {

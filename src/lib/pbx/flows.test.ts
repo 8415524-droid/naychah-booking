@@ -87,17 +87,19 @@ describe("קו לקוחות", () => {
   it("בירור מקריא הזמנה קיימת", async () => {
     expect(texts(await mainFlow({ main: "2", PBXphone: "0521111111" }, d))).toContain("הגפן");
   });
-  it("שלוחה 2 מזהה את המתקשר, מקריאה את ההזמנה ומעבירה לנציג", async () => {
+  it("שלוחה 2 מזהה את המתקשר, מקריאה את ההזמנה ומנתקת, בלי העברה לנציג", async () => {
     const r: any = await mainFlow({ main: "2", PBXphone: "972521111111" }, d);
     const t = texts(r);
     expect(t).toContain("הגפן");
     expect(t).toContain("נותר לשלם 2640 שקלים");
-    expect(r.at(-1)).toMatchObject({ type: "simpleRouting" });
+    expect(r.at(-1)).toMatchObject({ type: "hangup" });
+    expect(r.some((m: any) => m.type === "simpleRouting")).toBe(false);
   });
-  it("שלוחה 2 למתקשר לא מוכר מעבירה לנציג", async () => {
+  it("שלוחה 2 למתקשר לא מוכר מודיעה ומנתקת, בלי העברה", async () => {
     const r: any = await mainFlow({ main: "2", PBXphone: "0599999999" }, d);
     expect(texts(r)).toContain("לא נמצאה הזמנה");
-    expect(r.at(-1)).toMatchObject({ type: "simpleRouting" });
+    expect(r.at(-1)).toMatchObject({ type: "hangup" });
+    expect(r.some((m: any) => m.type === "simpleRouting")).toBe(false);
   });
   it("חזרה מניתוב מנתקת", async () => {
     expect(await mainFlow({ route1: "ANSWER" }, d)).toEqual({ type: "hangup" });
