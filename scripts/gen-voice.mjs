@@ -19,18 +19,25 @@ const jobs = SAMPLES.length
   : Object.entries(CLIPS).map(([name, text]) => ({ voice: VOICE, name, text }));
 mkdirSync("public/audio/samples", { recursive: true });
 for (const { voice, name, text } of jobs) {
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": KEY },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: STYLE + text }] }],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-      },
-    }),
-  });
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  // המכסה החינמית מוגבלת בקצב: ממתינים וחוזרים על 429 עד 4 פעמים
+  let res;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": KEY },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: STYLE + text }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
+        },
+      }),
+    });
+    if (res.status !== 429) break;
+    console.log("429, ממתין 40 שניות", voice);
+    await new Promise((r) => setTimeout(r, 40000));
+  }
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 600)}`);
   const j = await res.json();
   const b64 = j.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (!b64) throw new Error("לא התקבל שמע");
