@@ -10,12 +10,17 @@ const STYLE = "קרא בעברית בקול גברי חם, שמח ומזמין, 
 const CLIPS = {
   welcome:
     "נַיְיחָא! שבת של נחת במירון. להזמנת דירה, הקישו אחת. לבירורים על הזמנה, הקישו שתיים. לשירות, הקישו שלוש.",
+  queue:
+    "כל הנציגים שלנו עסוקים כרגע בשיחה אחרת. אנא המתינו על הקו, ונשיב לכם בהקדם. תודה על הסבלנות!",
 };
 
 // VOICES="Charon,Puck" מייצר דוגמאות להשוואה ב-public/audio/samples
 const SAMPLES = (process.env.VOICES || "").split(",").filter(Boolean);
 const jobs = SAMPLES.length
-  ? SAMPLES.map((v) => ({ voice: v, name: `samples/welcome-${v}`, text: CLIPS.welcome }))
+  ? [
+      ...SAMPLES.map((v) => ({ voice: v, name: `samples/welcome-${v}`, text: CLIPS.welcome })),
+      { voice: SAMPLES[0], name: `samples/queue-${SAMPLES[0]}`, text: CLIPS.queue },
+    ]
   : Object.entries(CLIPS).map(([name, text]) => ({ voice: VOICE, name, text }));
 mkdirSync("public/audio/samples", { recursive: true });
 for (const { voice, name, text } of jobs) {
