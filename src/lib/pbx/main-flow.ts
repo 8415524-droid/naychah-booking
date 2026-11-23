@@ -1,7 +1,7 @@
 import { describeStay } from "./speech";
 import { hangup, menu, normPhone, say, type PbxModule, type PbxParams, type PbxResponse } from "./types";
 
-export interface MainSettings { secretary: string; service: string; routerId: string; musicUrl: string; welcomeAudioUrl?: string }
+export interface MainSettings { secretary: string; service: string; routerId: string; serviceRouterId?: string; musicUrl: string; welcomeAudioUrl?: string }
 export interface MainDeps {
   settings(): Promise<MainSettings>;
   latestBooking(phone: string): Promise<{ apartment_name: string; check_in: string; check_out: string; status: string } | null>;
@@ -56,6 +56,7 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
     return out;
   }
   if (q.main === "3") {
+    if (s.serviceRouterId) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), { type: "queueRouting", name: "route3", routerId: s.serviceRouterId }];
     if (normPhone(s.service).length >= 9) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), route("route3", s.service)];
     return [say("מעביר אותך לנציג."), ...toSecretary(s, "route3")];
   }
