@@ -53,6 +53,19 @@ export function mainDeps(sb: SupabaseClient): MainDeps {
       const m = Object.fromEntries((data ?? []).map((r) => [r.key, String(r.value ?? "")]));
       return { secretary: m.secretary_phone ?? "", service: m.service_phone ?? "", routerId: m.queue_router_id ?? "", serviceRouterId: m.queue_router_id_service ?? "", musicUrl: m.music_url ?? "", welcomeAudioUrl: m.welcome_audio_url ?? "" };
     },
+    queue: {
+      async position(callId, kind) {
+        const now = new Date();
+        await sb.from("queue_waiting").upsert({ call_id: callId, kind, last_seen: now.toISOString() }, { onConflict: "call_id", ignoreDuplicates: false });
+        const fresh = new Date(now.getTime() - 90_000).toISOString();
+        const { data: me } = await sb.from("queue_waiting").select("joined_at").eq("call_id", callId).maybeSingle();
+        if (!me) return 1;
+        const { count } = await sb.from("queue_waiting").select("call_id", { count: "exact", head: true })
+          .eq("kind", kind).gte("last_seen", fresh).lt("joined_at", me.joined_at);
+        return (count ?? 0) + 1;
+      },
+      async leave(callId) { await sb.from("queue_waiting").delete().eq("call_id", callId); },
+    },
     async saveMessage(m) {
       await sb.from("voice_messages").insert({ phone: m.phone, file_id: m.fileId, file_name: m.fileName, seconds: m.seconds });
     },
