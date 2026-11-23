@@ -34,36 +34,27 @@ function toSecretary(s: MainSettings, name: string): PbxModule[] {
 
 export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxResponse> {
   // חזרה מניתוב או סיום שיחה
-  if (q.PBXcallStatus === "HANGUP" || q.route1 !== undefined || q.route2 !== undefined || q.route3 !== undefined || q.route4 !== undefined) return hangup();
+  if (q.PBXcallStatus === "HANGUP" || q.route1 !== undefined || q.route2 !== undefined || q.route3 !== undefined) return hangup();
   const s = await deps.settings();
 
   if (q.main === undefined || q.main === "ERROR") {
     const hello: PbxModule[] = [];
     if (s.musicUrl) hello.push({ type: "simpleMessage", files: [{ fileLink: s.musicUrl }] });
-    hello.push(menu("main", "ברוכים הבאים לנייחא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3. לפרטי ההזמנה שלכם הקישו 4.", "1234", true));
+    hello.push(menu("main", "ברוכים הבאים לנייחא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3.", "123", true));
     return hello;
   }
   if (q.main === "1") return [say("מעביר אותך להזמנת דירה. אנא המתינו."), ...toSecretary(s, "route1")];
   if (q.main === "2") {
-    const b = await deps.latestBooking(normPhone(q.PBXphone));
-    const intro = b
-      ? [say(`נמצאה הזמנה לדירה ${b.apartment_name}, ${describeStay(b.check_in, b.check_out)}. מעביר אותך לנציג.`)]
-      : [say("לא נמצאה הזמנה על המספר שממנו התקשרתם. מעביר אותך לנציג.")];
-    return [...intro, ...toSecretary(s, "route2")];
+    const list = await deps.bookingsByPhone(normPhone(q.PBXphone));
+    if (!list.length) return [say("לא נמצאה הזמנה על המספר שממנו התקשרתם. מעביר אותך לנציג."), ...toSecretary(s, "route2")];
+    const out: PbxModule[] = [say(list.length === 1 ? "נמצאה הזמנה אחת על שמכם." : `נמצאו ${list.length} הזמנות על שמכם.`)];
+    for (const b of list) out.push(say(readBooking(b)));
+    out.push(say("מעביר אותך לנציג."), ...toSecretary(s, "route2"));
+    return out;
   }
   if (q.main === "3") {
     if (normPhone(s.service).length >= 9) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), route("route3", s.service)];
     return [say("מעביר אותך לנציג."), ...toSecretary(s, "route3")];
-  }
-  if (q.main === "4") {
-    const list = await deps.bookingsByPhone(normPhone(q.PBXphone));
-    if (!list.length) {
-      return [say("לא נמצאה הזמנה על המספר שממנו התקשרתם. מעביר אותך לנציג."), ...toSecretary(s, "route4")];
-    }
-    const out: PbxModule[] = [say(list.length === 1 ? "נמצאה הזמנה אחת על שמכם." : `נמצאו ${list.length} הזמנות על שמכם.`)];
-    for (const b of list) out.push(say(readBooking(b)));
-    out.push(say("תודה שבחרתם בנייחא."), hangup());
-    return out;
   }
   return hangup();
 }
