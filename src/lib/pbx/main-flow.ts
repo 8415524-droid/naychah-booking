@@ -5,6 +5,22 @@ export interface MainSettings { secretary: string; service: string; routerId: st
 export interface MainDeps {
   settings(): Promise<MainSettings>;
   latestBooking(phone: string): Promise<{ apartment_name: string; check_in: string; check_out: string; status: string } | null>;
+  /** הזמנות עתידיות של המתקשר (עד 3), עם סכומים בשקלים, לשלוחת "ההזמנה שלי". */
+  bookingsByPhone(phone: string): Promise<MyBooking[]>;
+}
+export interface MyBooking {
+  apartment_name: string; check_in: string; check_out: string; status: string;
+  total: number; deposit_required: number; paid: number;
+}
+
+/** הקראת הזמנה אחת: דירה, מועד, מחיר ומצב תשלום. */
+export function readBooking(b: MyBooking): string {
+  const head = `דירה ${b.apartment_name}, ${describeStay(b.check_in, b.check_out)}. מחיר כולל ${b.total} שקלים.`;
+  if (b.status === "hold") {
+    return `${head} ההזמנה עדיין לא סגורה, והיא ממתינה לתשלום מקדמה של ${b.deposit_required} שקלים.`;
+  }
+  const left = Math.max(0, b.total - b.paid);
+  return `${head} שולם ${b.paid} שקלים, ונותר לשלם ${left} שקלים.`;
 }
 
 const route = (name: string, phone: string): PbxModule =>
@@ -18,13 +34,13 @@ function toSecretary(s: MainSettings, name: string): PbxModule[] {
 
 export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxResponse> {
   // חזרה מניתוב או סיום שיחה
-  if (q.PBXcallStatus === "HANGUP" || q.route1 !== undefined || q.route2 !== undefined || q.route3 !== undefined) return hangup();
+  if (q.PBXcallStatus === "HANGUP" || q.route1 !== undefined || q.route2 !== undefined || q.route3 !== undefined || q.route4 !== undefined) return hangup();
   const s = await deps.settings();
 
   if (q.main === undefined || q.main === "ERROR") {
     const hello: PbxModule[] = [];
     if (s.musicUrl) hello.push({ type: "simpleMessage", files: [{ fileLink: s.musicUrl }] });
-    hello.push(menu("main", "ברוכים הבאים לנייחא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3.", "123", true));
+    hello.push(menu("main", "ברוכים הבאים לנייחא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3. לפרטי ההזמנה שלכם הקישו 4.", "1234", true));
     return hello;
   }
   if (q.main === "1") return [say("מעביר אותך להזמנת דירה. אנא המתינו."), ...toSecretary(s, "route1")];
@@ -38,6 +54,16 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
   if (q.main === "3") {
     if (normPhone(s.service).length >= 9) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), route("route3", s.service)];
     return [say("מעביר אותך לנציג."), ...toSecretary(s, "route3")];
+  }
+  if (q.main === "4") {
+    const list = await deps.bookingsByPhone(normPhone(q.PBXphone));
+    if (!list.length) {
+      return [say("לא נמצאה הזמנה על המספר שממנו התקשרתם. מעביר אותך לנציג."), ...toSecretary(s, "route4")];
+    }
+    const out: PbxModule[] = [say(list.length === 1 ? "נמצאה הזמנה אחת על שמכם." : `נמצאו ${list.length} הזמנות על שמכם.`)];
+    for (const b of list) out.push(say(readBooking(b)));
+    out.push(say("תודה שבחרתם בנייחא."), hangup());
+    return out;
   }
   return hangup();
 }
