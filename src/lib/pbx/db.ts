@@ -53,6 +53,9 @@ export function mainDeps(sb: SupabaseClient): MainDeps {
       const m = Object.fromEntries((data ?? []).map((r) => [r.key, String(r.value ?? "")]));
       return { secretary: m.secretary_phone ?? "", service: m.service_phone ?? "", routerId: m.queue_router_id ?? "", serviceRouterId: m.queue_router_id_service ?? "", musicUrl: m.music_url ?? "", welcomeAudioUrl: m.welcome_audio_url ?? "" };
     },
+    async saveMessage(m) {
+      await sb.from("voice_messages").insert({ phone: m.phone, file_id: m.fileId, file_name: m.fileName, seconds: m.seconds });
+    },
     async latestBooking(phone) {
       if (phone.length < 9) return null;
       const { data: c } = await sb.from("customers").select("id").eq("phone", phone).maybeSingle();

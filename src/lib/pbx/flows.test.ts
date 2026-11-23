@@ -104,4 +104,13 @@ describe("קו לקוחות", () => {
   it("חזרה מניתוב מנתקת", async () => {
     expect(await mainFlow({ route1: "ANSWER" }, d)).toEqual({ type: "hangup" });
   });
+
+  it("שלוחה 4 מקליטה הודעה, ושומרת אותה כשחוזרת", async () => {
+    const r: any = await mainFlow({ main: "4" }, d);
+    expect(r[0]).toMatchObject({ type: "record", name: "msg" });
+    const saved: any[] = [];
+    const out: any = await mainFlow({ main: "4", PBXphone: "0521111111", FILEID_msg: "abc", DURATION_msg: "7" }, { ...d, saveMessage: async (m) => { saved.push(m); } });
+    expect(saved[0]).toMatchObject({ phone: "0521111111", fileId: "abc", seconds: 7 });
+    expect(out.at(-1)).toMatchObject({ type: "hangup" });
+  });
 });
