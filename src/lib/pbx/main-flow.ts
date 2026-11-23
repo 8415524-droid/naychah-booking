@@ -29,7 +29,7 @@ const route = (name: string, phone: string): PbxModule =>
   ({ type: "simpleRouting", name, dialPhone: normPhone(phone), routingMusic: "yes", ringSec: 30 });
 
 function toSecretary(s: MainSettings, name: string): PbxModule[] {
-  if (s.routerId) return [{ type: "queueRouting", name, routerId: s.routerId }];
+  if (s.routerId) return [{ type: "queueRouting", name: "queueResult", routerId: s.routerId, continueOnFail: "yes" }];
   if (normPhone(s.secretary).length >= 9) return [route(name, s.secretary)];
   return [say("הקו אינו זמין כרגע. אנא נסו שוב מאוחר יותר."), hangup()];
 }
@@ -40,8 +40,14 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
     await deps.saveMessage({ phone: normPhone(q.PBXphone), fileId: q.FILEID_msg, fileName: q.FILE_msg ?? q.msg ?? "", seconds: Number(q.DURATION_msg ?? 0) || 0 });
     return q.PBXcallStatus === "HANGUP" ? hangup() : [say("תודה, ההודעה נשמרה ונחזור אליכם בהקדם."), hangup()];
   }
+  // התור לא הצליח לחבר נציג (אין נציגים, אף אחד לא ענה, או שגיאה): מציעים להשאיר הודעה
+  if (["NOAGENTS", "NOANSWER", "ERROR"].includes(q.queueResult ?? "") && q.PBXcallStatus !== "HANGUP") {
+    console.log("pbx queue result", q.queueResult, q.STEXT_queueResult ?? "");
+    return [{ type: "record", name: "msg", max: 120, min: 2, confirm: "no", hangupSave: "yes",
+      files: pbxFiles("כרגע לא ניתן להשיג נציג. אנא השאירו הודעה אחרי הצליל, כולל שם ומספר טלפון, ונחזור אליכם בהקדם.") }];
+  }
   // חזרה מניתוב או סיום שיחה
-  if (q.PBXcallStatus === "HANGUP" || q.route1 !== undefined || q.route2 !== undefined || q.route3 !== undefined) return hangup();
+  if (q.PBXcallStatus === "HANGUP" || q.route1 !== undefined || q.queueResult !== undefined || q.route2 !== undefined || q.route3 !== undefined) return hangup();
   const s = await deps.settings();
 
   if (q.main === undefined || q.main === "ERROR") {
@@ -63,7 +69,7 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
     return out;
   }
   if (q.main === "3") {
-    if (s.serviceRouterId) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), { type: "queueRouting", name: "route3", routerId: s.serviceRouterId }];
+    if (s.serviceRouterId) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), { type: "queueRouting", name: "queueResult", routerId: s.serviceRouterId, continueOnFail: "yes" }];
     if (normPhone(s.service).length >= 9) return [say("מעביר אותך לשירות לקוחות. אנא המתינו."), route("route3", s.service)];
     return [say("מעביר אותך לנציג."), ...toSecretary(s, "route3")];
   }
