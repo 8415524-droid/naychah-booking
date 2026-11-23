@@ -4,8 +4,8 @@ import { writeFileSync, mkdirSync } from "node:fs";
 
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) throw new Error("חסר GEMINI_API_KEY");
-const VOICE = process.env.VOICE || "Kore";
-const STYLE = "קרא בעברית בקול חם, שמח ומזמין, בטון שיווקי ואנושי, בקצב נעים עם הדגשות, כמו קריין בחברת נופש ברמה גבוהה. ";
+const VOICE = process.env.VOICE || "Charon";
+const STYLE = "קרא בעברית בקול גברי חם, שמח ומזמין, בטון שיווקי ואנושי, בקצב נעים עם הדגשות, כמו קריין בחברת נופש ברמה גבוהה. ";
 
 const CLIPS = {
   welcome:
