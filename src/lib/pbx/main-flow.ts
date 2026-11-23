@@ -40,7 +40,7 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
   if (q.main === undefined || q.main === "ERROR") {
     const hello: PbxModule[] = [];
     if (s.musicUrl) hello.push({ type: "simpleMessage", files: [{ fileLink: s.musicUrl }] });
-    hello.push(menu("main", "ברוכים הבאים לנִיחָא! הכתובת שלכם לשבתות בלתי נשכחות במירון. דירות נבחרות, אווירה של קדושה ושמחה, ושבת של נחת בדיוק כמו שחלמתם. להזמנת דירה הקישו 1. לבירורים על הזמנה קיימת הקישו 2. לשירות לקוחות הקישו 3.", "123", true));
+    hello.push(menu("main", "ברוכים הבאים לנִיחָא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3.", "123", true));
     return hello;
   }
   if (q.main === "1") return [say("מעביר אותך להזמנת דירה. אנא המתינו."), ...toSecretary(s, "route1")];
