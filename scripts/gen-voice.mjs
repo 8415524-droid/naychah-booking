@@ -9,11 +9,16 @@ const STYLE = "קרא בעברית בקול גברי חם, שמח ומזמין, 
 
 const CLIPS = {
   welcome:
-    "ברוכים הבאים לניחא! הכתובת שלכם לשבתות בלתי נשכחות במירון. דירות נבחרות, אווירה של קדושה ושמחה, ושבת של נחת בדיוק כמו שחלמתם. להזמנת דירה, הקישו אחת. לבירורים על הזמנה קיימת, הקישו שתיים. לשירות לקוחות, הקישו שלוש.",
+    "ברוכים הבאים לנִיחָא! הכתובת שלכם לשבתות בלתי נשכחות במירון. דירות נבחרות, אווירה של קדושה ושמחה, ושבת של נחת בדיוק כמו שחלמתם. להזמנת דירה, הקישו אחת. לבירורים על הזמנה קיימת, הקישו שתיים. לשירות לקוחות, הקישו שלוש.",
 };
 
-mkdirSync("public/audio", { recursive: true });
-for (const [name, text] of Object.entries(CLIPS)) {
+// VOICES="Charon,Puck" מייצר דוגמאות להשוואה ב-public/audio/samples
+const SAMPLES = (process.env.VOICES || "").split(",").filter(Boolean);
+const jobs = SAMPLES.length
+  ? SAMPLES.map((v) => ({ voice: v, name: `samples/welcome-${v}`, text: CLIPS.welcome }))
+  : Object.entries(CLIPS).map(([name, text]) => ({ voice: VOICE, name, text }));
+mkdirSync("public/audio/samples", { recursive: true });
+for (const { voice, name, text } of jobs) {
   const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent", {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": KEY },
@@ -21,7 +26,7 @@ for (const [name, text] of Object.entries(CLIPS)) {
       contents: [{ parts: [{ text: STYLE + text }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
       },
     }),
   });
@@ -29,8 +34,8 @@ for (const [name, text] of Object.entries(CLIPS)) {
   const j = await res.json();
   const b64 = j.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (!b64) throw new Error("לא התקבל שמע");
-  writeFileSync(`/tmp/${name}.pcm`, Buffer.from(b64, "base64"));
+  writeFileSync(`/tmp/${name.replace('/', '_')}.pcm`, Buffer.from(b64, "base64"));
   // PCM 16-bit mono 24kHz -> mp3 מנורמל
-  execFileSync("ffmpeg", ["-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", `/tmp/${name}.pcm`, "-af", "loudnorm=I=-16", "-ar", "22050", "-b:a", "64k", `public/audio/${name}.mp3`], { stdio: "inherit" });
+  execFileSync("ffmpeg", ["-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", `/tmp/${name.replace('/', '_')}.pcm`, "-af", "loudnorm=I=-16", "-ar", "22050", "-b:a", "64k", `public/audio/${name}.mp3`], { stdio: "inherit" });
   console.log("נוצר", name);
 }
