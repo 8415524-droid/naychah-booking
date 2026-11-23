@@ -13,7 +13,7 @@ export type PbxResponse = PbxModule | PbxModule[];
 export const say = (text: string): PbxModule => ({ type: "simpleMessage", files: [{ text }] });
 export const hangup = (): PbxModule => ({ type: "hangup" });
 export const menu = (name: string, text: string, keys: string, music?: boolean): PbxModule =>
-  ({ type: "simpleMenu", name, files: [{ text }], enabledKeys: keys, times: 2, timeout: 6, ...(music ? { setMusic: "yes" as const } : {}) });
+  ({ type: "simpleMenu", name, files: [{ text }], enabledKeys: keys.includes(",") ? keys : keys.split("").join(","), times: 2, timeout: 6, ...(music ? { setMusic: "yes" as const } : {}) });
 export const digits = (name: string, text: string, min: number, max: number): PbxModule =>
   ({ type: "getDTMF", name, files: [{ text }], min, max, timeout: 8, confirmType: "no" });
 
