@@ -40,7 +40,7 @@ export async function mainFlow(q: PbxParams, deps: MainDeps): Promise<PbxRespons
   if (q.main === undefined || q.main === "ERROR") {
     const hello: PbxModule[] = [];
     if (s.musicUrl) hello.push({ type: "simpleMessage", files: [{ fileLink: s.musicUrl }] });
-    const m = menu("main", "ברוכים הבאים לנִיחָא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3.", "123", true);
+    const m = menu("main", "ברוכים הבאים לנַיְיחָא. להזמנת דירה הקישו 1. לבירורים לאחר סגירת הזמנה הקישו 2. לשירות לקוחות הקישו 3.", "123", true);
     // קריינות מוקלטת מראש (קול אנושי) מחליפה את ההקראה הממוכנת כשהוגדר קישור
     if (s.welcomeAudioUrl && m.type === "simpleMenu") m.files = [{ fileLink: s.welcomeAudioUrl }];
     hello.push(m);
