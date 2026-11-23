@@ -1,6 +1,6 @@
 // Module API של טכנוליין: המרכזייה קוראת לכתובת שלנו בכל שלב, ואנחנו מחזירים JSON עם המודול הבא.
 export type PbxParams = Record<string, string | undefined>;
-export type PbxFile = { text: string } | { fileLink: string };
+export type PbxFile = { text: string } | { fileLink: string; fileName?: string };
 export type PbxModule =
   | { type: "simpleMessage"; files: PbxFile[] }
   | { type: "simpleMenu"; name: string; files: PbxFile[]; enabledKeys: string; times?: number; timeout?: number; setMusic?: "yes" | "no" }
@@ -23,7 +23,7 @@ export function pbxFiles(text: string): PbxFile[] {
   if (!key) return [{ text }];
   let ok = exists.get(key);
   if (ok === undefined) { ok = existsSync(join(process.cwd(), "public", "audio", "clips", `${key}.mp3`)); exists.set(key, ok); }
-  return ok ? [{ fileLink: `${CLIP_BASE}/${key}.mp3` }] : [{ text }];
+  return ok ? [{ fileLink: `${CLIP_BASE}/${key}.mp3`, fileName: `${key}_v2` }] : [{ text }];
 }
 
 export const say = (text: string): PbxModule => ({ type: "simpleMessage", files: pbxFiles(text) });
