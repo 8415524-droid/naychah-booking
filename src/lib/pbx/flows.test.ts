@@ -113,4 +113,9 @@ describe("קו לקוחות", () => {
     expect(saved[0]).toMatchObject({ phone: "0521111111", fileId: "abc", seconds: 7 });
     expect(out.at(-1)).toMatchObject({ type: "hangup" });
   });
+
+  it("תור שלא ענה מציע להשאיר הודעה", async () => {
+    const r: any = await mainFlow({ main: "1", queueResult: "NOAGENTS" }, d);
+    expect(r[0]).toMatchObject({ type: "record", name: "msg" });
+  });
 });
