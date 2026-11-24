@@ -10,6 +10,10 @@ on:
         description: 'מפתחות קליפים בלבד, מופרדים בפסיקים (למשל welcome). ריק = הכול'
         required: false
         default: ''
+      max_keys:
+        description: 'מספר מפתחות מקסימלי (עד המפתח ה-N, 0 = כולם)'
+        required: false
+        default: '0'
       skip_keys:
         description: 'כמה מפתחות מההתחלה לדלג (0 = כולם)'
         required: false
@@ -33,6 +37,7 @@ jobs:
           VOICES: ${{ inputs.voices }}
           ONLY: ${{ inputs.only }}
           SKIP_KEYS: ${{ inputs.skip_keys }}
+          MAX_KEYS: ${{ inputs.max_keys }}
       - name: commit audio
         if: always()
         run: |
