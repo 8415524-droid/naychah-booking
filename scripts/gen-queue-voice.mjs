@@ -1,8 +1,8 @@
 // הקראות תור ההמתנה (דיבור בלבד, בלי מוזיקה) בקול Algenib. הערבוב עם המוזיקה: scripts/mix-queue.sh
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
-const ALL_KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4].slice(Number(process.env.SKIP_KEYS) || 0).filter(Boolean); // SKIP_KEYS=3 משאיר רק את מפתח 4
-const KEYS = process.env.ONLY_KEY ? [ALL_KEYS[Number(process.env.ONLY_KEY) - 1]].filter(Boolean) : ALL_KEYS; // ONLY_KEY=2 משתמש רק במפתח 2
+const ALL_KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4, process.env.GEMINI_API_KEY_5, process.env.GEMINI_API_KEY_6].slice(Number(process.env.SKIP_KEYS) || 0).filter(Boolean); // SKIP_KEYS=3 משאיר רק את מפתח 4
+const KEYS = process.env.ONLY_KEY ? process.env.ONLY_KEY.split(",").map((k) => ALL_KEYS[Number(k) - 1]).filter(Boolean) : ALL_KEYS; // ONLY_KEY="5,6" משתמש רק במפתחות 5 ו-6
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
 const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): קול גברי מבוגר, חם ובטוח, בטון גבוה יותר ונמרץ ומאיר פנים, אנרגטי ומזמין. הקראה אחת רציפה וזורמת לגמרי, בלי שום הפסקה באמצע. הדיבור אנושי וטבעי, לא רובוטי: כל פעם שהמילה הַקִּישׁוּ חוזרת היא נשמעת קצת אחרת (גובה, הדגשה וקצב משתנים מעט, כמו אדם אמיתי שמדבר), ובכל מספר ההטעמה שונה במקצת. הַקִּישׁוּ בעברית תקנית עם דגש באות ק. המילה נַיְיחַא בהטעמה במלעיל (ההברה הראשונה, כמו NAY-cha). "; // זהה לפתיח (scripts/gen-voice.mjs)
 const READ_ONLY = "\n\nהקרא עכשיו את הטקסט הבא בלבד, מילה במילה, בלי להוסיף שום מילה ובלי לשנות או להשמיט, וסיים מיד בסופו:\n";
