@@ -12,6 +12,10 @@ export default function Sidebar({ groups }: { groups: NavGroup[] }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState(false);
+  const [opened, setOpened] = useState<Set<string>>(new Set());
+  function toggleGroup(t: string) {
+    setOpened((o) => { const n = new Set(o); if (n.has(t)) n.delete(t); else n.add(t); return n; });
+  }
 
   useEffect(() => {
     try { setCollapsed(localStorage.getItem(KEY) === "1"); } catch {}
@@ -34,18 +38,29 @@ export default function Sidebar({ groups }: { groups: NavGroup[] }) {
       {open && <div className="side-scrim" onClick={() => setOpen(false)} />}
       <aside className={`side${collapsed ? " side--min" : ""}${open ? " side--open" : ""}`} aria-label="תפריט ראשי">
         <nav>
-          {groups.map((g) => (
-            <div key={g.title} className="side-group">
-              <div className="side-title">{g.title}</div>
-              {g.items.map((it) => {
-                const cls = `side-link${isActive(pathname, it.href) && !it.external ? " side-link--on" : ""}`;
-                const inner = <><span className="side-ico" aria-hidden>{it.icon}</span><span className="side-label">{it.label}</span></>;
-                return it.external
-                  ? <a key={it.href} href={it.href} className={cls} title={it.label}>{inner}</a>
-                  : <Link key={it.href} href={it.href} className={cls} title={it.label}>{inner}</Link>;
-              })}
-            </div>
-          ))}
+          {groups.map((g) => {
+            const hasActive = g.items.some((it) => !it.external && isActive(pathname, it.href));
+            // מכווץ בברירת מחדל; הקבוצה של העמוד הנוכחי נפתחת. במצב אייקונים הכול גלוי.
+            const expanded = g.pinned || collapsed || opened.has(g.title) || hasActive;
+            return (
+              <div key={g.title} className="side-group">
+                {g.pinned ? <div className="side-title">{g.title}</div> : (
+                  <button type="button" className="side-head" aria-expanded={expanded} onClick={() => toggleGroup(g.title)}>
+                    <span className="side-label">{g.title}</span>
+                    <span className="side-count">{g.items.length}</span>
+                    <span className="side-chev" aria-hidden>{expanded ? "▴" : "▾"}</span>
+                  </button>
+                )}
+                {expanded && g.items.map((it) => {
+                  const cls = `side-link${isActive(pathname, it.href) && !it.external ? " side-link--on" : ""}`;
+                  const inner = <><span className="side-ico" aria-hidden>{it.icon}</span><span className="side-label">{it.label}</span></>;
+                  return it.external
+                    ? <a key={it.href} href={it.href} className={cls} title={it.label}>{inner}</a>
+                    : <Link key={it.href} href={it.href} className={cls} title={it.label}>{inner}</Link>;
+                })}
+              </div>
+            );
+          })}
         </nav>
         <button type="button" className="side-collapse" onClick={toggle} aria-label={collapsed ? "הרחב תפריט" : "כווץ תפריט"}>
           {collapsed ? "»" : "«"}
