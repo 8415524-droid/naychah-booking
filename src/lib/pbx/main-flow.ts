@@ -1,6 +1,6 @@
 import { describeStay } from "./speech";
 import { afterRound, lastRound, queueRound, recordModule, type QueueDeps } from "./queue";
-import { hangup, menu, pbxFiles, normPhone, say, type PbxModule, type PbxParams, type PbxResponse } from "./types";
+import { eventsUrl, hangup, menu, pbxFiles, normPhone, say, type PbxModule, type PbxParams, type PbxResponse } from "./types";
 
 export interface MainSettings { secretary: string; service: string; routerId: string; serviceRouterId?: string; musicUrl: string; welcomeAudioUrl?: string }
 export interface MainDeps {
@@ -28,7 +28,7 @@ export function readBooking(b: MyBooking): string {
 }
 
 const route = (name: string, phone: string): PbxModule =>
-  ({ type: "simpleRouting", name, dialPhone: normPhone(phone), routingMusic: "yes", ringSec: 30 });
+  ({ type: "simpleRouting", name, dialPhone: normPhone(phone), routingMusic: "yes", ringSec: 30, ...(eventsUrl() ? { eventsUrl: eventsUrl() } : {}) });
 
 function toSecretary(s: MainSettings, name: string): PbxModule[] {
   if (s.routerId && normPhone(s.secretary).length >= 9) return [queueRound(1, [normPhone(s.secretary)])];
