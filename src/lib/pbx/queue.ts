@@ -1,7 +1,7 @@
 // תור המתנה משלנו: מחכים לנציג דקה בכל סבב (מוזיקה), ובסוף כל דקה, ובין הסבבים אומרים "הנך מספר X" ומציעים להשאיר הודעה.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { menu, pbxFiles, say, type PbxModule, type PbxParams } from "./types";
+import { eventsUrl, menu, pbxFiles, say, type PbxModule, type PbxParams } from "./types";
 
 const QUEUE_CLIP_BASE = process.env.PBX_QUEUE_AUDIO_BASE ?? "https://75-119-140-120.sslip.io/audio/queue";
 const QUEUE_CLIP_VER = "v1"; // להעלות כשמחליפים קובץ: טכנוליין שומרת במטמון לפי שם הקובץ
@@ -23,7 +23,7 @@ export function recordModule(text = RECORD_BUSY_TEXT): PbxModule {
 }
 
 export function queueRound(round: number, phones: string[]): PbxModule {
-  return { type: "queueRouting", name: `queueResult${round}`, continueOnFail: "yes", phones,
+  return { type: "queueRouting", name: `queueResult${round}`, continueOnFail: "yes", phones, ...(eventsUrl() ? { eventsUrl: eventsUrl() } : {}),
     router: { waitingDuration: QUEUE_ROUND_SEC, ringDuration: 25, failingAction: "hangup" } };
 }
 

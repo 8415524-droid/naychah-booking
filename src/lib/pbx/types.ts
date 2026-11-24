@@ -5,8 +5,8 @@ export type PbxModule =
   | { type: "simpleMessage"; files: PbxFile[] }
   | { type: "simpleMenu"; name: string; files: PbxFile[]; enabledKeys: string; times?: number; timeout?: number; setMusic?: "yes" | "no" }
   | { type: "getDTMF"; name: string; files: PbxFile[]; min: number; max: number; timeout?: number; confirmType?: "digits" | "number" | "no" }
-  | { type: "simpleRouting"; name: string; dialPhone: string; displayNumber?: string; routingMusic?: "yes" | "no"; ringSec?: number }
-  | { type: "queueRouting"; name: string; routerId?: string; router?: { waitingDuration?: number; ringDuration?: number; failingAction?: "hangup" }; phones?: string[]; continueOnFail?: "yes" }
+  | { type: "simpleRouting"; name: string; dialPhone: string; displayNumber?: string; routingMusic?: "yes" | "no"; ringSec?: number; eventsUrl?: string }
+  | { type: "queueRouting"; name: string; routerId?: string; router?: { waitingDuration?: number; ringDuration?: number; failingAction?: "hangup" }; phones?: string[]; continueOnFail?: "yes"; eventsUrl?: string }
   | { type: "record"; name: string; files: PbxFile[]; max?: number; min?: number; confirm?: "no" | "confirmOnly" | "ful"; hangupSave?: "yes" | "no" }
   | { type: "hangup" };
 export type PbxResponse = PbxModule | PbxModule[];
@@ -24,6 +24,13 @@ export function pbxFiles(text: string): PbxFile[] {
   let ok = exists.get(key);
   if (ok === undefined) { ok = existsSync(join(process.cwd(), "public", "audio", "clips", `${key}.mp3`)); exists.set(key, ok); }
   return ok ? [{ fileLink: `${CLIP_BASE}/${key}.mp3`, fileName: `${key}_v8` }] : [{ text }];
+}
+
+/** כתובת ה-webhook שבה המרכזייה מדווחת סיום שיחה והקלטה (אירוע completed). ריק אם אין סוד מוגדר. */
+export function eventsUrl(): string | undefined {
+  const secret = process.env.PBX_SECRET;
+  if (!secret) return undefined;
+  return `${process.env.PBX_PUBLIC_BASE ?? "https://75-119-140-120.sslip.io"}/api/pbx/events/${secret}`;
 }
 
 export const say = (text: string): PbxModule => ({ type: "simpleMessage", files: pbxFiles(text) });
