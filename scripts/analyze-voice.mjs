@@ -6,9 +6,19 @@ const prompt = `זו הקלטה של בעל האתר מקריא פתיח למר�
 1) תמלול מדויק של מה שנאמר, עם ניקוד מלא, ועם סימון של ההטעמה במילים המרכזיות (למשל המילה נייחא).
 2) תיאור ביצוע מפורט להנחיית מנוע הקראה (TTS): קצב (מילים בדקה, מהיר/בינוני), גובה ושפת הקול, נימה ורגש, הטעמה (מלעיל/מלרע), מיקום הפסקות ואורכן, עליות וירידות, סיום משפטים, מבטא. כתוב הנחיה קצרה בת 3-5 משפטים שאפשר להדביק לפני הטקסט.`;
 let last = "";
-for (let i = 0; i < 6; i++) {
+// דגמים אפשריים: הראשי, ואחריו דגמי flash/pro שהמפתח רואה (בלי tts/image/live)
+let MODELS = ["gemini-3.8-flash"];
+try {
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": KEYS[0] } });
+  const lj = await r.json();
+  const found = (lj.models ?? []).map((m) => m.name.replace("models/", "")).filter((n) => /gemini/.test(n) && /(flash|pro)/.test(n) && !/(tts|image|live|embedding|thinking-exp|robotics|computer)/.test(n));
+  console.log("דגמים זמינים:", found.join(", "));
+  MODELS = [...new Set([...MODELS, ...found])];
+} catch (e) { console.log("רשימת דגמים נכשלה", String(e).slice(0, 100)); }
+for (let i = 0; i < 14; i++) {
+  const model = MODELS[i % MODELS.length];
   const key = KEYS[i % KEYS.length];
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/x", {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify({ contents: [{ parts: [{ inlineData: { mimeType: "audio/mp3", data: b64 } }, { text: prompt }] }] }),
@@ -22,7 +32,7 @@ for (let i = 0; i < 6; i++) {
   }
   last = `${res.status}: ${(await res.text()).slice(0, 300)}`;
   console.log("נכשל", last);
-  await new Promise((r) => setTimeout(r, res.status === 429 ? 20000 : 2000));
+  await new Promise((r) => setTimeout(r, res.status === 429 || res.status === 503 ? 15000 : 2000));
 }
 console.log("כל הניסיונות נכשלו", last);
 process.exit(1);
