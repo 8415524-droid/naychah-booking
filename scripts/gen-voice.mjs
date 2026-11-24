@@ -15,7 +15,7 @@ const ALL = JSON.parse(readFileSync("src/lib/pbx/clips.json", "utf8"));
 const SAMPLES = (process.env.VOICES || "").split(",").filter(Boolean);
 const first = ALL.find((c) => c.key === "welcome");
 const jobs = SAMPLES.length
-  ? SAMPLES.map((v) => ({ voice: v, name: `samples/welcome-${v}`, text: first.spoken ?? first.text }))
+  ? SAMPLES.map((v) => ({ voice: v, name: process.env.SAMPLE_NAME ? `samples/${process.env.SAMPLE_NAME}` : `samples/welcome-${v}`, text: process.env.SAMPLE_TEXT || (first.spoken ?? first.text) }))
   : ALL.map((c) => ({ voice: VOICE, name: c.key === "welcome" ? "clips/welcome-voice" : `clips/${c.key}`, text: c.spoken ?? c.text }));
 const ONLY = (process.env.ONLY || "").split(",").filter(Boolean); // ONLY=welcome מפיק רק את הקליפים הנבחרים
 if (ONLY.length) for (let i = jobs.length - 1; i >= 0; i--) if (!ONLY.some((k) => jobs[i].name === `clips/${k}` || jobs[i].name === `clips/${k}-voice`)) jobs.splice(i, 1);
@@ -33,7 +33,7 @@ for (const { voice, name, text } of jobs) {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": KEYS[(keyIdx + attempt) % KEYS.length] },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: STYLE + READ_ONLY + text }] }],
+        contents: [{ parts: [{ text: STYLE + (process.env.STYLE_EXTRA || "") + READ_ONLY + text }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },

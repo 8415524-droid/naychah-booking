@@ -2,6 +2,12 @@ name: generate-voice
 on:
   workflow_dispatch:
     inputs:
+      sample_text:
+        required: false
+      sample_name:
+        required: false
+      style_extra:
+        required: false
       voices:
         description: 'רשימת קולות לדוגמה, מופרדת בפסיקים (ריק = קובץ הפתיח הסופי)'
         required: false
@@ -35,6 +41,9 @@ jobs:
           GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
           GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
           VOICES: ${{ inputs.voices }}
+          SAMPLE_TEXT: ${{ inputs.sample_text }}
+          SAMPLE_NAME: ${{ inputs.sample_name }}
+          STYLE_EXTRA: ${{ inputs.style_extra }}
           ONLY: ${{ inputs.only }}
           SKIP_KEYS: ${{ inputs.skip_keys }}
           MAX_KEYS: ${{ inputs.max_keys }}
