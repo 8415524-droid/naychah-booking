@@ -112,3 +112,25 @@ a.stat:hover { border-color:var(--amber); }
 .login-logo { width:min(260px,70%); margin:8px auto 4px; }
 .logo-tile { display:block; background:#fff; border-radius:10px; padding:2px 6px; line-height:0; }
 .logo-tile img { height:36px; width:auto; display:block; }
+
+/* כרטיס מתכווץ */
+details.coll > summary { cursor:pointer; list-style:none; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+details.coll > summary::-webkit-details-marker { display:none; }
+details.coll > summary::after { content:"▾"; color:var(--muted); }
+details.coll[open] > summary::after { content:"▴"; }
+.coll-title { font-weight:700; font-size:1.1rem; }
+.coll-sum { color:var(--muted); font-size:.85rem; margin-inline-start:auto; }
+.coll-body { margin-top:12px; }
+/* טבלה עם סינון ובחירה */
+@media (max-width:700px){ .dt-wrap { overflow-x:auto; min-height:260px; } }
+.dt-chk { width:34px; }
+.dt-chk input { width:auto; }
+tr.dt-sel td { background:rgba(242,169,59,.08); }
+.cf { position:relative; display:inline-block; margin-inline-start:4px; }
+.cf-btn { background:transparent; border:0; color:var(--muted); cursor:pointer; padding:0 4px; }
+.cf-btn.cf-on { color:var(--amber); }
+.cf-pop { position:absolute; z-index:20; inset-inline-start:0; top:100%; min-width:180px; max-height:260px; overflow:auto; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:6px; box-shadow:0 12px 30px rgba(0,0,0,.45); }
+.cf-opt { display:flex; gap:8px; align-items:center; margin:0; padding:4px 6px; font-size:.9rem; color:var(--cream); }
+.cf-opt input { width:auto; }
+.bulkbar { position:sticky; bottom:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:var(--card); border:1px solid var(--amber); border-radius:12px; padding:10px 14px; margin-top:10px; }
+.linkbtn { background:none; border:0; color:var(--amber); cursor:pointer; font-family:inherit; padding:0; }
