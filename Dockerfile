@@ -20,6 +20,8 @@ WORKDIR /app
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 TZ=Asia/Jerusalem
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
+# קבצי public (לוגו, אייקונים, קטעי הקראה) לא נכללים אוטומטית ב-standalone
+COPY --from=build /app/public ./public
 EXPOSE 3000
 USER node
 CMD ["node", "server.js"]
