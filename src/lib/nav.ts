@@ -1,27 +1,30 @@
 import type { Role } from "@/lib/auth";
 
 export type NavItem = { href: string; label: string; icon: string; external?: boolean };
-export type NavGroup = { title: string; items: NavItem[] };
+export type NavGroup = { title: string; items: NavItem[]; pinned?: boolean };
 
-// תפריט הצד, מקובץ לפי נושאים ומסונן לפי תפקיד (כמו באתר הדירות).
+// תפריט הצד: למעלה הדברים החשובים תמיד גלויים (pinned), והשאר מקובץ בכותרות מתכווצות.
+// מסונן לפי תפקיד.
 export function navGroups(role: Role): NavGroup[] {
   const staff = role === "admin" || role === "agent";
   const admin = role === "admin";
+  const member = ["admin", "agent", "owner"].includes(role);
   const groups: NavGroup[] = [
-    { title: "ראשי", items: [
+    { title: "ראשי", pinned: true, items: [
       { href: "/", label: "בית", icon: "🏠" },
-      ...(staff ? [{ href: "/search", label: "הזמנה חדשה (חיפוש דירה)", icon: "➕" }, { href: "/waitlist", label: "רשימת המתנה", icon: "⏳" }, { href: "/alerts", label: "התראות", icon: "🔔" }] : []),
+      ...(staff ? [{ href: "/search", label: "הזמנה חדשה", icon: "➕" }] : []),
+      ...(member ? [{ href: "/bookings", label: "הזמנות", icon: "📅" }] : []),
+      ...(staff ? [{ href: "/requests", label: "בקשות מהאתר", icon: "📥" }, { href: "/alerts", label: "התראות", icon: "🔔" }, { href: "/calls", label: "תיעוד שיחות", icon: "📞" }] : []),
       ...(role === "owner" ? [{ href: "/my-report", label: "הדוח שלי", icon: "📄" }] : []),
     ] },
-    { title: "הזמנות", items: [
-      ...(["admin", "agent", "owner"].includes(role) ? [{ href: "/bookings", label: "הזמנות", icon: "📅" }] : []),
-      ...(staff ? [{ href: "/requests", label: "בקשות מהאתר", icon: "📥" }] : []),
-      ...(staff ? [{ href: "/customers", label: "לקוחות", icon: "👤" }, { href: "/calls", label: "תיעוד שיחות", icon: "📞" }] : []),
-      ...(staff ? [{ href: "/forecast", label: "תחזית שבתות", icon: "📈" }, { href: "/occupancy", label: "תפוסה חודשית", icon: "🗓️" }] : []),
-    ] },
-    { title: "נכסים", items: [
-      ...(["admin", "agent", "owner"].includes(role) ? [{ href: "/apartments", label: "דירות", icon: "🏘️" }] : []),
+    { title: "לקוחות ונכסים", items: [
+      ...(staff ? [{ href: "/customers", label: "לקוחות", icon: "👤" }, { href: "/waitlist", label: "רשימת המתנה", icon: "⏳" }] : []),
+      ...(member ? [{ href: "/apartments", label: "דירות", icon: "🏘️" }] : []),
       ...(admin ? [{ href: "/owners", label: "בעלי דירות", icon: "🔑" }] : []),
+    ] },
+    { title: "תחזיות ודוחות", items: [
+      ...(staff ? [{ href: "/forecast", label: "תחזית שבתות", icon: "📈" }, { href: "/occupancy", label: "תפוסה חודשית", icon: "🗓️" }] : []),
+      ...(admin ? [{ href: "/reports", label: "דוחות", icon: "📊" }] : []),
     ] },
     { title: "כספים", items: [
       ...(admin ? [
@@ -35,7 +38,7 @@ export function navGroups(role: Role): NavGroup[] {
       ...(staff || role === "vendor" ? [{ href: "/maintenance", label: "תחזוקה וניקיון", icon: "🛠️" }] : []),
     ] },
     { title: "ניהול", items: [
-      ...(admin ? [{ href: "/reports", label: "דוחות", icon: "📊" }, { href: "/users", label: "משתמשים", icon: "👥" }, { href: "/backup", label: "גיבוי וייצוא", icon: "💾" }, { href: "/settings", label: "הגדרות", icon: "⚙️" }] : []),
+      ...(admin ? [{ href: "/users", label: "משתמשים", icon: "👥" }, { href: "/backup", label: "גיבוי וייצוא", icon: "💾" }, { href: "/settings", label: "הגדרות", icon: "⚙️" }] : []),
       ...(staff ? [{ href: "/old/", label: "המערכת הישנה", icon: "↩️", external: true }] : []),
     ] },
   ];
