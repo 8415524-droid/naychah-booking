@@ -92,7 +92,8 @@ header.top { position:sticky; top:0; z-index:30; gap:12px; }
 .side-scrim { display:none; }
 @media (max-width:900px) {
   .menu-btn { display:block; }
-  .search-btn { min-width:0; } .search-btn-text, .search-btn kbd { display:none; }
+  .search-btn { min-width:0; padding:6px 10px; font-size:.85rem; } .search-btn kbd { display:none; }
+  header.top { flex-wrap:wrap; }
   .side { position:fixed; top:64px; inset-inline-start:0; z-index:40; transform:translateX(100%); width:240px; transition:transform .18s; }
   .side--min { width:240px; }
   .side--min .side-label, .side--min .side-title { display:initial; }

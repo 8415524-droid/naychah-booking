@@ -40,13 +40,13 @@ export default function GlobalSearch() {
 
   return (
     <>
-      <button type="button" className="search-btn" onClick={() => setOpen(true)} aria-label="חיפוש">
-        <span aria-hidden>🔎</span><span className="search-btn-text">חיפוש</span><kbd>Ctrl+K</kbd>
+      <button type="button" className="search-btn" onClick={() => setOpen(true)} aria-label="חיפוש הזמנה">
+        <span aria-hidden>🔎</span><span className="search-btn-text">חיפוש הזמנה</span><kbd>Ctrl+K</kbd>
       </button>
       {open && (
         <div className="gs-scrim" onClick={() => setOpen(false)}>
           <div className="gs" role="dialog" aria-label="חיפוש גלובלי" onClick={(e) => e.stopPropagation()}>
-            <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="חפש דירה, לקוח, טלפון, בעל דירה או עמוד…" />
+            <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="חפש הזמנה לפי שם לקוח, טלפון או מספר הזמנה. אפשר גם דירה או בעל דירה…" />
             <div className="gs-list">
               {q.trim().length < 2 && <p className="muted">הקלד לפחות שתי אותיות.</p>}
               {q.trim().length >= 2 && !busy && hits.length === 0 && <p className="muted">לא נמצא כלום.</p>}

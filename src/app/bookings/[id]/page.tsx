@@ -53,7 +53,7 @@ export default async function Booking({ params, searchParams }: { params: Promis
     <Shell role={role} name={name}>
       <h1>הזמנה · {b.apartments?.name}</h1>
       <div className="card">
-        <p><strong>{STATUS_HE[status]}</strong></p>
+        <p><strong>{STATUS_HE[status]}</strong> <span className="muted">· הזמנה #{id.slice(0, 8)}</span></p>
         {status === "hold" && b.hold_expires_at && (
           <p>התפיסה משתחררת בשעה {new Date(b.hold_expires_at).toLocaleTimeString("he-IL", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" })} אם לא תשולם מקדמה.</p>
         )}
