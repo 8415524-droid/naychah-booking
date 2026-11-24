@@ -21,9 +21,9 @@ async function save(fd: FormData) {
   for (const f of FIELDS) {
     await supabase.from("settings").upsert({ key: f.key, value: String(fd.get(f.key) ?? "").trim() });
   }
-  for (const k of ["deposit_percent", "hold_minutes"]) {
+  for (const k of ["deposit_percent", "hold_minutes", "vat_percent", "oncost_percent"]) {
     const v = Number(fd.get(k));
-    if (v > 0) await supabase.from("settings").upsert({ key: k, value: v });
+    if (v > 0 || (v === 0 && k !== "deposit_percent" && k !== "hold_minutes")) await supabase.from("settings").upsert({ key: k, value: v });
   }
   revalidatePath("/settings");
 }
@@ -40,6 +40,8 @@ export default async function Settings() {
         <div className="grid2">
           <div><label>אחוז מקדמה</label><input type="number" name="deposit_percent" min={1} max={100} defaultValue={v("deposit_percent") || 12} /></div>
           <div><label>משך תפיסה זמנית (דקות)</label><input type="number" name="hold_minutes" min={1} defaultValue={v("hold_minutes") || 30} /></div>
+          <div><label>מע״מ (%)</label><input type="number" name="vat_percent" min={0} defaultValue={v("vat_percent") || 18} /></div>
+          <div><label>עלויות מעביד מעל הברוטו (%)</label><input type="number" name="oncost_percent" min={0} defaultValue={v("oncost_percent") || 22} /></div>
         </div>
         <h2>פרטי חברה ומרכזייה</h2>
         {FIELDS.map((f) => (

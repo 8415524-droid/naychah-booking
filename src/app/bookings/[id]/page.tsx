@@ -6,6 +6,7 @@ import Collapsible from "@/components/Collapsible";
 import Shell from "@/components/Shell";
 import { fmtDate } from "@/lib/weekends";
 import { customerMessages, waLink } from "@/lib/messages";
+import { AD_CHANNELS } from "@/lib/finance";
 
 const STATUS_HE: Record<string, string> = { hold: "תפוסה זמנית, ממתינה למקדמה", confirmed: "סגורה", cancelled: "בוטלה", expired: "פגה" };
 
@@ -18,6 +19,29 @@ async function pay(fd: FormData) {
     p_reference: String(fd.get("reference") || "") || null,
   });
   if (error) redirect(`/bookings/${id}?err=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/bookings/${id}`);
+}
+
+async function credit(fd: FormData) {
+  "use server";
+  const { supabase, user } = await getSession(["admin"]);
+  const id = String(fd.get("booking_id"));
+  const paymentId = String(fd.get("payment_id"));
+  const amount = Math.round(Number(fd.get("amount")));
+  const { data: p } = await supabase.from("payments").select("amount").eq("id", paymentId).single();
+  const { data: prev } = await supabase.from("credit_notes").select("amount").eq("payment_id", paymentId);
+  const left = (p?.amount ?? 0) - (prev ?? []).reduce((a, x) => a + x.amount, 0);
+  if (!(amount > 0) || amount > left) redirect(`/bookings/${id}?err=${encodeURIComponent(`סכום הזיכוי חייב להיות בין 1 ל-${left}`)}`);
+  const { error } = await supabase.from("credit_notes").insert({ payment_id: paymentId, amount, reason: String(fd.get("reason") || "") || null, created_by: user.id });
+  if (error) redirect(`/bookings/${id}?err=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/bookings/${id}`);
+}
+
+async function setChannel(fd: FormData) {
+  "use server";
+  const { supabase } = await getSession(["admin", "agent"]);
+  const id = String(fd.get("booking_id"));
+  await supabase.rpc("set_booking_channel", { p_booking: id, p_channel: String(fd.get("channel") || "") });
   revalidatePath(`/bookings/${id}`);
 }
 
@@ -36,6 +60,7 @@ export default async function Booking({ params, searchParams }: { params: Promis
   const { data: b } = await supabase.from("bookings")
     .select("*, apartments(name, owners(name, phone)), customers(full_name, phone)").eq("id", id).single();
   if (!b) notFound();
+  const { data: credits } = await supabase.from("credit_notes").select("id, number, amount, payment_id").in("payment_id", ((await supabase.from("payments").select("id").eq("booking_id", id)).data ?? []).map((x) => x.id).concat(["00000000-0000-0000-0000-000000000000"]));
   const { data: payments } = await supabase.from("payments").select("*").eq("booking_id", id).order("created_at");
   const paid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
   const remaining = Math.max(0, b.deposit_required - paid);
@@ -68,10 +93,26 @@ export default async function Booking({ params, searchParams }: { params: Promis
           <h2>קבלות</h2>
           <table>
             <thead><tr><th>מס' קבלה</th><th>סכום</th><th>אמצעי</th><th>אסמכתא</th><th></th></tr></thead>
-            <tbody>{payments.map((p) => <tr key={p.id}><td>{p.receipt_no}</td><td>{p.amount} ₪</td><td>{p.method}</td><td>{p.reference}</td><td><Link href={`/bookings/${id}/receipt/${p.receipt_no}`}>הדפסה</Link></td></tr>)}</tbody>
+            <tbody>{payments.map((p) => <tr key={p.id}><td>{p.receipt_no}</td><td>{p.amount} ₪</td><td>{p.method}</td><td>{p.reference}</td><td><Link href={`/bookings/${id}/receipt/${p.receipt_no}`}>הדפסה</Link>
+              {(credits ?? []).filter((c) => c.payment_id === p.id).map((c) => <span key={c.id}> · <Link href={`/bookings/${id}/credit/${c.number}`}>זיכוי {c.number} (−{c.amount})</Link></span>)}
+              {role === "admin" && (
+                <form action={credit} className="row" style={{ marginTop: 6 }}>
+                  <input type="hidden" name="booking_id" value={id} /><input type="hidden" name="payment_id" value={p.id} />
+                  <input type="number" name="amount" min={1} max={p.amount} placeholder="סכום זיכוי" style={{ width: 110 }} />
+                  <input name="reason" placeholder="סיבה" style={{ width: 140 }} /><button className="danger">הפק זיכוי</button>
+                </form>
+              )}</td></tr>)}</tbody>
           </table>
         </div>
       )}
+
+      <Collapsible title="ערוץ הגעה" summary={b.marketing_channel ?? "לא סומן"}>
+        <form action={setChannel}>
+          <input type="hidden" name="booking_id" value={id} />
+          <select name="channel" defaultValue={b.marketing_channel ?? ""}><option value="">לא ידוע</option>{AD_CHANNELS.map((c) => <option key={c}>{c}</option>)}</select>
+          <button className="btn">שמירה</button>
+        </form>
+      </Collapsible>
 
       {b.customers?.phone && (
         <Collapsible title="הודעות וואטסאפ מוכנות" summary="מקדמה, אישור, תזכורת, תודה">

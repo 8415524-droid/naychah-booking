@@ -11,7 +11,7 @@ export default async function Home() {
   if (role === "none") {
     return <Shell role={role} name={name}><div className="card">החשבון שלך עדיין לא קיבל הרשאה. פנה למנהל.</div></Shell>;
   }
-  const staff = role !== "owner";
+  const staff = role === "admin" || role === "agent";
   const today = new Date().toISOString().slice(0, 10);
   const [apts, confirmed, holds, customers, upcoming] = await Promise.all([
     supabase.from("apartments").select("id", { count: "exact", head: true }).eq("active", true),
