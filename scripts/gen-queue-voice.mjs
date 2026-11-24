@@ -3,7 +3,8 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4].slice(Number(process.env.SKIP_KEYS) || 0).filter(Boolean); // SKIP_KEYS=3 משאיר רק את מפתח 4
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
-const STYLE = "קרא בעברית רגילה וברורה, בלי הטעמה במלעיל, בקול גברי מבוגר, מעט צרוד וחם. הנימה: חיובית ושיווקית, כמו מוכר כריזמטי בשוק שמזמין לקוחות בחיוך ובהתלהבות, אבל תמיד בצורה מכובדת ומכבדת. קצב זורם ואנרגטי, קריאה רציפה בלי עצירות באמצע מילים. ";
+const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): נימה נלהבת, שיווקית וחמה כמו מוכר כריזמטי בשוק אבל מכובד, קול גברי מבוגר מעט צרוד, קצב רציף ללא עצירות. ";
+const READ_ONLY = "\n\nהקרא עכשיו את הטקסט הבא בלבד, מילה במילה, בלי להוסיף שום מילה ובלי לשנות או להשמיט, וסיים מיד בסופו:\n";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/queue-clips.json", "utf8"));
 mkdirSync("public/audio/queue-speech", { recursive: true });
 let failed = 0;
@@ -15,7 +16,7 @@ for (const c of ALL) {
     for (let a = 0; a < 5; a++) {
       res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent", {
         method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": KEYS[a % KEYS.length] },
-        body: JSON.stringify({ contents: [{ parts: [{ text: STYLE + (c.spoken ?? c.text) }] }],
+        body: JSON.stringify({ contents: [{ parts: [{ text: STYLE + READ_ONLY + (c.spoken ?? c.text) }] }],
           generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Algenib" } } } } }),
       });
       if (res.status !== 429) break;
