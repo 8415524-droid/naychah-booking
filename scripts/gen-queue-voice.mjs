@@ -1,7 +1,7 @@
 // הקראות תור ההמתנה (דיבור בלבד, בלי מוזיקה) בקול Algenib. הערבוב עם המוזיקה: scripts/mix-queue.sh
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
-const KEYS = [process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4, process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean); // 3 ו-4 ראשונים: טריים
+const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4].slice(Number(process.env.SKIP_KEYS) || 0).filter(Boolean); // SKIP_KEYS=3 משאיר רק את מפתח 4
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
 const STYLE = "קרא בעברית רגילה וברורה, בלי הטעמה במלעיל, בקול גברי מבוגר, מעט צרוד וחם. הנימה: חיובית ושיווקית, כמו מוכר כריזמטי בשוק שמזמין לקוחות בחיוך ובהתלהבות, אבל תמיד בצורה מכובדת ומכבדת. קצב זורם ואנרגטי, קריאה רציפה בלי עצירות באמצע מילים. ";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/queue-clips.json", "utf8"));

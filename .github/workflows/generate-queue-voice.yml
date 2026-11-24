@@ -1,6 +1,11 @@
 name: generate-queue-voice
 on:
   workflow_dispatch:
+    inputs:
+      skip_keys:
+        description: 'כמה מפתחות מההתחלה לדלג (3 = רק מפתח 4)'
+        required: false
+        default: '0'
 permissions:
   contents: write
 jobs:
@@ -17,6 +22,7 @@ jobs:
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
           GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
+          SKIP_KEYS: ${{ inputs.skip_keys }}
       - name: commit audio
         if: always()
         run: |
