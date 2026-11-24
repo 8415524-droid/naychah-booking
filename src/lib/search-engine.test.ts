@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { busyNightCount, evaluate, explain, findSplits, rank, type SearchApt, type SearchQuery } from "./search-engine";
 
-const base: SearchQuery = { guests: 0, rooms: 0, budget: 0, text: "", maxDistM: 0, showers: 0, toilets: 0, sqm: 0, sofaBeds: 0, cribs: 0, parking: 0, condition: "", floor: null, flags: [], must: [] };
+const base: SearchQuery = { guests: 0, rooms: 0, budget: 0, text: "", maxDistM: 0, maxWalk: 0, showers: 0, toilets: 0, sqm: 0, sofaBeds: 0, cribs: 0, parking: 0, condition: "", floor: null, flags: [], must: [] };
 const apt = (o: Partial<SearchApt> = {}): SearchApt => ({ name: "דירה א", beds: 8, rooms: 4, ...o });
 const ctx = { nights: 2, busyNights: 0, total: 1500 };
 
@@ -118,6 +118,17 @@ describe("rank", () => {
     expect(exact.map((r) => r.apt.name)).toEqual(["מדויקת", "גדולה"]);
     expect(near.map((r) => r.apt.name)).toEqual(["קרובה"]);
   });
+  it("זמן הליכה: סינון רך ומיון קרוב קודם", () => {
+    expect(evaluate(apt({ walk_minutes: 4 }), { ...base, maxWalk: 5 }, ctx).exact).toBe(true);
+    expect(evaluate(apt({ walk_minutes: 9 }), { ...base, maxWalk: 5 }, ctx).gaps[0].t).toContain("9 דקות הליכה");
+    const rows = [mk("רחוקה", { walk_minutes: 10 }, base, 1000), mk("קרובה", { walk_minutes: 2 }, base, 2000)];
+    expect(rank(rows, 0, "near").exact[0].apt.name).toBe("קרובה");
+  });
+  it("בלי תאריכים: אין תגית זמינות ואין פער תקציב", () => {
+    const e = evaluate(apt(), { ...base, budget: 1000 }, { nights: 0, busyNights: 0, total: null });
+    expect(e.exact).toBe(true);
+    expect(e.oks).not.toContain("פנויה בתאריכים");
+  });
   it("בוסט (לקוח חוזר) שובר שוויון", () => {
     const rows = [mk("א", { id: "1" }, base, 1000), mk("ב", { id: "2" }, base, 2000)];
     expect(rank(rows, 0, "best", new Map([["2", -0.5]])).exact[0].apt.name).toBe("ב");
@@ -125,6 +136,6 @@ describe("rank", () => {
   it("מיון לפי מחיר ולפי מרחק", () => {
     const rows = [mk("א", { distance_from_tomb_m: 500 }, base, 1000), mk("ב", { distance_from_tomb_m: 100 }, base, 2000)];
     expect(rank(rows, 0, "price").exact[0].apt.name).toBe("א");
-    expect(rank(rows, 0, "distance").exact[0].apt.name).toBe("ב");
+    expect(rank(rows, 0, "near").exact[0].apt.name).toBe("ב");
   });
 });

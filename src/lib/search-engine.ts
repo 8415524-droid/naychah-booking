@@ -37,6 +37,7 @@ export interface SearchApt {
   features?: string[] | null;
   amenities?: string[] | null;
   distance_from_tomb_m?: number | null;
+  walk_minutes?: number | null;
   condition?: string | null;
   floor?: number | null;
   showers?: number | null;
@@ -54,6 +55,7 @@ export interface SearchQuery {
   budget: number;          // סכום כולל לשהות, 0 = ללא
   text: string;            // חיפוש חופשי: שם / כתובת / הערות
   maxDistM: number;        // מרחק מקסימלי מהציון במטרים, 0 = ללא
+  maxWalk: number;         // דקות הליכה מקסימליות מהציון, 0 = ללא
   showers: number;
   toilets: number;
   sqm: number;
@@ -128,7 +130,7 @@ export function evaluate(a: SearchApt, q: SearchQuery, ctx: EvalCtx): Evaluation
   let hard = false, partial = false;
   if (ctx.nights > 0 && ctx.busyNights >= ctx.nights) hard = true;
   else if (ctx.busyNights > 0) { partial = true; gap(`תפוסה ${ctx.busyNights} מתוך ${ctx.nights} לילות`, 3, "bad"); }
-  else oks.push("פנויה בתאריכים");
+  else if (ctx.nights > 0) oks.push("פנויה בתאריכים");
 
   // מיטות
   key = "guests";
@@ -146,7 +148,7 @@ export function evaluate(a: SearchApt, q: SearchQuery, ctx: EvalCtx): Evaluation
   }
   // מחיר
   key = "budget";
-  if (q.budget) {
+  if (q.budget && ctx.nights > 0) {
     if (ctx.total == null) gap("מחיר: לא ניתן לתמחר", 0.5, "unknown");
     else if (ctx.total <= q.budget) oks.push("בתקציב");
     else { const over = ctx.total - q.budget; gap(`יקרה ב־${ILS(over)} מהתקציב`, over / q.budget > 0.3 ? 9 : over / q.budget > 0.12 ? 2 : 1); }
@@ -166,6 +168,13 @@ export function evaluate(a: SearchApt, q: SearchQuery, ctx: EvalCtx): Evaluation
     if (d == null) gap("מרחק: לא הוזן", 0.5, "unknown");
     else if (d <= q.maxDistM) oks.push(`${d} מ' מהציון`);
     else gap(`רחוקה ${d - q.maxDistM} מ' מעבר למבוקש (${d} מ')`, (d - q.maxDistM) / q.maxDistM > 0.5 ? 3 : 1);
+  }
+  key = "walk";
+  if (q.maxWalk) {
+    const w = a.walk_minutes;
+    if (w == null) gap("זמן הליכה: לא אותר", 0.5, "unknown");
+    else if (w <= q.maxWalk) oks.push(`${w} דקות הליכה`);
+    else gap(`${w} דקות הליכה, ביקשו עד ${q.maxWalk}`, (w - q.maxWalk) / q.maxWalk > 0.5 ? 3 : 1);
   }
   // מספרים מינימליים
   const need = (v: number | null | undefined, min: number, label: string, short?: string) => {
@@ -207,7 +216,7 @@ export function evaluate(a: SearchApt, q: SearchQuery, ctx: EvalCtx): Evaluation
   return { oks, gaps, score, hard, partial, exact: !gaps.length };
 }
 
-export type SortMode = "best" | "price" | "distance";
+export type SortMode = "best" | "price" | "near";
 
 export interface Ranked { apt: SearchApt & { id?: string }; ev: Evaluation; total: number | null }
 
@@ -215,7 +224,8 @@ export interface Ranked { apt: SearchApt & { id?: string }; ev: Evaluation; tota
 export function explain(a: SearchApt, ev: Evaluation): string {
   const bits = [`${a.beds} מיטות`];
   if (a.rooms != null) bits.push(`${a.rooms} חדרים`);
-  if (a.distance_from_tomb_m != null) bits.push(`${a.distance_from_tomb_m} מטר מהציון`);
+  if (a.walk_minutes != null) bits.push(`${a.walk_minutes} דקות הליכה מהציון`);
+  else if (a.distance_from_tomb_m != null) bits.push(`${a.distance_from_tomb_m} מטר מהציון`);
   let t = bits.join(", ");
   const miss = ev.gaps.filter((g) => g.level !== "unknown").map((g) => g.t);
   if (!miss.length) t += ev.exact ? ", עונה על כל מה שביקשו" : "";
@@ -229,12 +239,13 @@ export function explain(a: SearchApt, ev: Evaluation): string {
  */
 export function rank<T extends Ranked>(rows: T[], guests: number, mode: SortMode, boost: Map<string, number> = new Map()): { exact: T[]; near: T[] } {
   const price = (r: T) => r.total ?? Number.MAX_SAFE_INTEGER;
-  const dist = (r: T) => r.apt.distance_from_tomb_m ?? Number.MAX_SAFE_INTEGER;
+  // קרבה לציון: דקות הליכה אם יש, אחרת מטרים (כ-80 מטר לדקה)
+  const dist = (r: T) => r.apt.walk_minutes ?? (r.apt.distance_from_tomb_m != null ? r.apt.distance_from_tomb_m / 80 : Number.MAX_SAFE_INTEGER);
   const tight = (r: T) => Math.max(0, r.apt.beds - guests); // התאמת מיטות הדוקה קודם
   const bo = (r: T) => boost.get(r.apt.id ?? "") ?? 0;
   const cmp = (x: T, y: T) =>
     mode === "price" ? price(x) - price(y) || x.ev.score - y.ev.score
-    : mode === "distance" ? dist(x) - dist(y) || x.ev.score - y.ev.score
+    : mode === "near" ? dist(x) - dist(y) || x.ev.score - y.ev.score
     : x.ev.score + bo(x) - (y.ev.score + bo(y)) || tight(x) - tight(y) || price(x) - price(y);
   const live = rows.filter((r) => !r.ev.hard);
   const exact = live.filter((r) => r.ev.exact);

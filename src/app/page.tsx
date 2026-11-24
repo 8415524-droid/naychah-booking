@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import Shell from "@/components/Shell";
 import { fmtDate } from "@/lib/weekends";
+import { loadAlerts } from "@/lib/alerts-data";
 
 const STATUS_HE: Record<string, string> = { hold: "ממתינה למקדמה", confirmed: "סגורה" };
 
@@ -22,6 +23,7 @@ export default async function Home() {
       .in("status", ["hold", "confirmed"]).gte("check_out", today).order("check_in").limit(8),
   ]);
 
+  const alerts = staff ? await loadAlerts(supabase) : [];
   return (
     <Shell role={role} name={name}>
       <h1>שלום {name}</h1>
@@ -31,6 +33,12 @@ export default async function Home() {
         <Link className="stat" href="/bookings"><div className="stat-n">{holds.count ?? 0}</div><div className="stat-l">ממתינות למקדמה</div></Link>
         {staff && <Link className="stat" href="/customers"><div className="stat-n">{customers.count ?? 0}</div><div className="stat-l">לקוחות</div></Link>}
       </div>
+      {alerts.length > 0 && (
+        <div className="card">
+          <div className="row"><h2 style={{ margin: 0 }}>דורש טיפול ({alerts.length})</h2><Link className="btn" href="/alerts">כל ההתראות</Link></div>
+          {alerts.slice(0, 5).map((a, i) => <p key={i}><strong className={a.sev === "bad" ? "err" : "ok"}>{a.sev === "bad" ? "דחוף" : "לתשומת לב"}</strong> · {a.href ? <Link href={a.href}>{a.text}</Link> : a.text}</p>)}
+        </div>
+      )}
       <div className="card">
         <div className="row"><h2 style={{ margin: 0 }}>הזמנות קרובות</h2>{staff && <Link className="btn" href="/search">חיפוש דירה ללקוח</Link>}</div>
         <table>

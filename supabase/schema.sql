@@ -70,7 +70,7 @@ create table if not exists apartments (
   floor int,                          -- 0 = קרקע
   showers int check (showers is null or showers >= 0),
   toilets int check (toilets is null or toilets >= 0),
-  amenities text[] not null default '{}',   -- מאפייני חיפוש (ראו 007)
+  amenities text[] not null default '{}',   -- מאפייני חיפוש (ראו 011)
   sofa_beds int check (sofa_beds is null or sofa_beds >= 0),
   cribs int check (cribs is null or cribs >= 0),
   parking_spots int check (parking_spots is null or parking_spots >= 0),
@@ -356,7 +356,7 @@ create policy set_admin on settings for all using (my_role() = 'admin') with che
 revoke all on function create_hold, record_payment, cancel_booking, expire_holds from public, anon;
 grant execute on function create_hold, record_payment, cancel_booking to authenticated;
 
--- רשימת המתנה לחיפוש (ראו updates/008-waitlist.sql)
+-- רשימת המתנה לחיפוש (ראו updates/012-waitlist.sql)
 create table if not exists search_waitlist (
   id uuid primary key default gen_random_uuid(),
   customer_name text not null,

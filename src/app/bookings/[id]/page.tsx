@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import Collapsible from "@/components/Collapsible";
 import Shell from "@/components/Shell";
 import { fmtDate } from "@/lib/weekends";
+import { customerMessages, waLink } from "@/lib/messages";
 
 const STATUS_HE: Record<string, string> = { hold: "תפוסה זמנית, ממתינה למקדמה", confirmed: "סגורה", cancelled: "בוטלה", expired: "פגה" };
 
@@ -38,6 +39,13 @@ export default async function Booking({ params, searchParams }: { params: Promis
   const { data: payments } = await supabase.from("payments").select("*").eq("booking_id", id).order("created_at");
   const paid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
   const remaining = Math.max(0, b.deposit_required - paid);
+  const { data: dp } = await supabase.from("settings").select("value").eq("key", "deposit_percent").maybeSingle();
+  const depositPercent = Number(dp?.value ?? 12) || 12;
+  const holdLeft = b.status === "hold" && b.hold_expires_at ? Math.max(0, Math.round((new Date(b.hold_expires_at).getTime() - Date.now()) / 60000)) : null;
+  const msgs = customerMessages({
+    customer: b.customers?.full_name ?? "", apartment: b.apartments?.name ?? "", check_in: b.check_in, check_out: b.check_out,
+    guests: b.guests, total_price: b.total_price, deposit_required: b.deposit_required, paid, hold_minutes_left: holdLeft,
+  }, depositPercent);
   const expired = b.status === "hold" && b.hold_expires_at && new Date(b.hold_expires_at) < new Date();
   const status = expired ? "expired" : b.status;
 
@@ -45,7 +53,7 @@ export default async function Booking({ params, searchParams }: { params: Promis
     <Shell role={role} name={name}>
       <h1>הזמנה · {b.apartments?.name}</h1>
       <div className="card">
-        <p><strong>{STATUS_HE[status]}</strong></p>
+        <p><strong>{STATUS_HE[status]}</strong> <span className="muted">· הזמנה #{id.slice(0, 8)}</span></p>
         {status === "hold" && b.hold_expires_at && (
           <p>התפיסה משתחררת בשעה {new Date(b.hold_expires_at).toLocaleTimeString("he-IL", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" })} אם לא תשולם מקדמה.</p>
         )}
@@ -59,10 +67,21 @@ export default async function Booking({ params, searchParams }: { params: Promis
         <div className="card">
           <h2>קבלות</h2>
           <table>
-            <thead><tr><th>מס' קבלה</th><th>סכום</th><th>אמצעי</th><th>אסמכתא</th></tr></thead>
-            <tbody>{payments.map((p) => <tr key={p.id}><td>{p.receipt_no}</td><td>{p.amount} ₪</td><td>{p.method}</td><td>{p.reference}</td></tr>)}</tbody>
+            <thead><tr><th>מס' קבלה</th><th>סכום</th><th>אמצעי</th><th>אסמכתא</th><th></th></tr></thead>
+            <tbody>{payments.map((p) => <tr key={p.id}><td>{p.receipt_no}</td><td>{p.amount} ₪</td><td>{p.method}</td><td>{p.reference}</td><td><Link href={`/bookings/${id}/receipt/${p.receipt_no}`}>הדפסה</Link></td></tr>)}</tbody>
           </table>
         </div>
+      )}
+
+      {b.customers?.phone && (
+        <Collapsible title="הודעות וואטסאפ מוכנות" summary="מקדמה, אישור, תזכורת, תודה">
+          {msgs.map((m) => (
+            <div key={m.key} className="row" style={{ borderTop: "1px solid var(--line)", padding: "8px 0" }}>
+              <span>{m.label}</span>
+              <a className="btn" href={waLink(b.customers.phone, m.text)} target="_blank" rel="noopener noreferrer">שליחה בוואטסאפ</a>
+            </div>
+          ))}
+        </Collapsible>
       )}
 
       {status === "hold" && (

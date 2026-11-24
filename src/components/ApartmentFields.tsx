@@ -1,5 +1,6 @@
 import { AMENITIES } from "@/lib/search-engine";
 import { CONDITION_HE, DOW_HE, EXTRAS, FEATURES } from "@/lib/labels";
+import { normalizeIcalUrl } from "@/lib/ical";
 
 type Apt = Record<string, any> | null;
 
@@ -54,7 +55,7 @@ export default function ApartmentFields({ apt }: { apt: Apt }) {
       </div>
       <label>הערות</label>
       <textarea name="notes" rows={3} defaultValue={apt?.notes ?? ""} />
-      <label>כתובת יומן חיצוני לייבוא (iCal, https)</label>
+      <label>כתובת יומן חיצוני לייבוא (כל יומן: גוגל, אפל, אאוטלוק, Airbnb, Booking, כתובת iCal / webcal)</label>
       <input name="ical_import_url" defaultValue={apt?.ical_import_url ?? ""} placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
       <h3>שעות סף (כל בעל דירה קובע לעצמו)</h3>
       <div className="grid2">
@@ -102,7 +103,7 @@ export function parseApartment(fd: FormData) {
     cribs: fd.get("cribs") === "" ? null : num("cribs"),
     parking_spots: fd.get("parking_spots") === "" ? null : num("parking_spots"),
     notes: String(fd.get("notes") || "") || null,
-    ical_import_url: String(fd.get("ical_import_url") || "").trim() || null,
+    ical_import_url: normalizeIcalUrl(String(fd.get("ical_import_url") || "")) || null,
     early_cutoff_dow: Number(fd.get("early_cutoff_dow")),
     early_cutoff_time: String(fd.get("early_cutoff_time") || "12:00"),
     single_night_opens_dow: Number(fd.get("single_night_opens_dow")),

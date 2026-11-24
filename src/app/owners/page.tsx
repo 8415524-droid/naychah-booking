@@ -56,13 +56,14 @@ export default async function Owners() {
           filename="owners"
           columns={[
             { key: "name", label: "שם" }, { key: "phone", label: "טלפון" }, { key: "cb", label: "צינתוק" },
-            { key: "sync", label: "יומן מסונכרן", filter: true }, { key: "del", label: "" },
+            { key: "sync", label: "יומן מסונכרן", filter: true }, { key: "agr", label: "" }, { key: "del", label: "" },
           ]}
           rows={(owners ?? []).map((o) => ({
             id: o.id,
             cells: {
               name: { text: o.name ?? "" }, phone: { text: o.phone ?? "" }, cb: { text: o.callback_phone ?? "" },
               sync: { text: o.calendar_synced ? "כן" : "לא" },
+              agr: { text: "", node: <a href={`/owners/${o.id}/agreement`}>הסכם להדפסה</a> },
               del: { text: "", node: <form action={deleteOwner}><input type="hidden" name="id" value={o.id} /><button className="danger">מחיקה</button></form> },
             },
           }))}

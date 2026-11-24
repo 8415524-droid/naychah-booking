@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { walkLabel } from "@/lib/geo";
 import ApartmentMap from "@/components/ApartmentMap";
 import Shell from "@/components/Shell";
 import { depositFor, nowInJerusalem, quote, type PricingRule } from "@/lib/pricing";
@@ -71,28 +72,33 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
   const r = stayRange(sp);
   const query = queryFrom(sp);
   const guests = query.guests;
-  const sort: SortMode = sp.sort === "price" || sp.sort === "distance" ? sp.sort : "best";
+  const sort: SortMode = sp.sort === "price" || sp.sort === "near" ? sp.sort : "best";
+  const MAIN = ["weekend", "stay", "guests", "rooms", "budget", "maxwalk", "q", "sort", "err"];
+  const moreCount = Object.entries(sp).filter(([k, v]) => v && !MAIN.includes(k)).length;
   const back = new URLSearchParams(Object.entries(sp).filter(([k, v]) => k !== "err" && v) as [string, string][]).toString();
 
+  // מספיק למלא שדה אחד כלשהו: בלי תאריכים מדרגים לפי שאר הדרישות בלבד
+  const dated = !!r && r.checkOut > r.checkIn;
+  const filled = Object.entries(sp).some(([k, v]) => v && !["err", "stay", "sort"].includes(k));
   let out: SearchOutcome | null = null;
-  if (r && r.checkOut > r.checkIn) out = await runSearch(supabase, query, r, sort, now, sp.cust_phone);
-  const exact = out?.exact ?? [], near = out?.near ?? [], skipped = out?.skipped ?? [];
+  if (filled) out = await runSearch(supabase, query, dated ? r : null, sort, now, sp.cust_phone);
+  const exact = out?.exact ?? [], near = out?.near ?? [];
 
   const ResultCard = ({ row: { apt, total, early, deposit, period, ev, notes } }: { row: Row }) => (
     <div className={`card${ev.exact ? "" : " near"}`}>
       <div className="row">
         <h2 style={{ margin: 0 }}>{apt.name}</h2>
-        <div><strong>{total?.toLocaleString()} ₪</strong> <span className="muted">· {period} · {early ? "מחיר מוזל" : "מחיר רגיל"}</span></div>
+        <div>{total != null ? <><strong>{total.toLocaleString()} ₪</strong> <span className="muted">· {period} · {early ? "מחיר מוזל" : "מחיר רגיל"}</span></> : dated && <span className="muted">מחיר לפי בירור</span>}</div>
       </div>
-      <p>{apt.beds} מיטות · {apt.rooms ?? "?"} חדרים{apt.distance_from_tomb_m != null && ` · ${apt.distance_from_tomb_m} מ' מהציון`} · {apt.owners?.name}</p>
+      <p>{apt.beds} מיטות · {apt.rooms ?? "?"} חדרים{apt.walk_minutes != null ? ` · ${walkLabel(apt.walk_minutes)}` : apt.distance_from_tomb_m != null && ` · ${apt.distance_from_tomb_m} מ' מהציון`} · {apt.owners?.name}</p>
       <p><strong>{explain(apt, ev)}</strong></p>
       <Tags ev={ev} />
       {notes.map((t, i) => <span key={i} className="tag ok">★ {t}</span>)}
       {detailsLine(apt) && <p className="muted">{detailsLine(apt)}</p>}
       {apt.features?.length > 0 && <p className="muted">{apt.features.join(" · ")}</p>}
       {apt.notes && <p className="muted">{apt.notes}</p>}
-      <ApartmentMap address={apt.address} name={apt.name} />
-      {ev.partial ? <p className="muted">תפוסה חלקית, אי אפשר להזמין בתאריכים אלה</p> : (
+      <ApartmentMap address={apt.address} name={apt.name} lat={apt.lat} lng={apt.lng} />
+      {!dated ? null : ev.partial ? <p className="muted">תפוסה חלקית, אי אפשר להזמין בתאריכים אלה</p> : total == null ? <p className="muted">אי אפשר לסגור מכאן: אין מחיר מוגדר לשהייה הזו, יש לברר מול בעל הדירה</p> : (
         <form action={closeBooking}>
           <input type="hidden" name="apartment_id" value={apt.id} />
           <input type="hidden" name="check_in" value={r!.checkIn} />
@@ -113,6 +119,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
     <Shell role={role} name={name}>
       <h1>חיפוש דירה</h1>
       <form className="card" method="get">
+        <p className="muted">אפשר למלא רק חלק מהשדות. כל מה שלא מולא לא נדרש, ודירות שלא עונות על הכול מוצגות עם סימון מה חסר.</p>
         <div className="grid2">
           <div>
             <label>שבת / פרשה</label>
@@ -130,62 +137,63 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
               <option value="custom">תאריכים אחרים</option>
             </select>
           </div>
-          <div><label>כניסה (לתאריכים אחרים)</label><input type="date" name="from" defaultValue={sp.from} /></div>
-          <div><label>יציאה</label><input type="date" name="to" defaultValue={sp.to} /></div>
           <div><label>מספר אנשים / מיטות</label><input type="number" name="guests" min={1} defaultValue={sp.guests} /></div>
           <div><label>חדרים (לפחות)</label><input type="number" name="rooms" min={0} defaultValue={sp.rooms} /></div>
+          <div><label>תקציב מקסימלי (₪)</label><input type="number" name="budget" min={0} defaultValue={sp.budget} /></div>
+          <div><label>עד כמה דקות הליכה מהציון</label><input type="number" name="maxwalk" min={1} defaultValue={sp.maxwalk} /></div>
           <div><label>חיפוש חופשי (שם / אזור / הערות)</label><input name="q" defaultValue={sp.q} /></div>
-          <div><label>מרחק מקסימלי מהציון (מטרים)</label><input type="number" name="max_dist" min={0} defaultValue={sp.max_dist} /></div>
           <div>
             <label>מיון</label>
             <select name="sort" defaultValue={sort}>
               <option value="best">הכי מתאימה</option>
               <option value="price">הכי זולה</option>
-              <option value="distance">הכי קרובה לציון</option>
+              <option value="near">הכי קרובה לציון</option>
             </select>
           </div>
-          <div><label>טלפון הלקוח (לזיהוי לקוח חוזר)</label><input name="cust_phone" inputMode="tel" defaultValue={sp.cust_phone} /></div>
-          <div><label>תקציב מקסימלי (₪)</label><input type="number" name="budget" min={0} defaultValue={sp.budget} /></div>
-          <div>
-            <label>מצב הדירה</label>
-            <select name="condition" defaultValue={sp.condition ?? ""}>
-              <option value="">הכול</option>
-              {Object.entries(CONDITION_HE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
-          <div><label>קומה (0 = קרקע)</label><input type="number" name="floor" defaultValue={sp.floor} /></div>
-          <div><label>מקלחות (לפחות)</label><input type="number" name="showers" min={0} defaultValue={sp.showers} /></div>
-          <div><label>שירותים (לפחות)</label><input type="number" name="toilets" min={0} defaultValue={sp.toilets} /></div>
-          <div><label>סלון (מ"ר לפחות)</label><input type="number" name="sqm" min={0} defaultValue={sp.sqm} /></div>
-          <div><label>ספות נפתחות (לפחות)</label><input type="number" name="sofa_beds" min={0} defaultValue={sp.sofa_beds} /></div>
-          <div><label>מיטות תינוק (לפחות)</label><input type="number" name="cribs" min={0} defaultValue={sp.cribs} /></div>
-          <div><label>חניות (לפחות)</label><input type="number" name="parking" min={0} defaultValue={sp.parking} /></div>
         </div>
-        <details open={query.flags.length > 0}>
-          <summary>מאפיינים נדרשים</summary>
+        <details open={moreCount > 0}>
+          <summary>עוד אפשרויות{moreCount > 0 ? ` (${moreCount} מולאו)` : ""}</summary>
+          <div className="grid2">
+            <div><label>כניסה (לתאריכים אחרים)</label><input type="date" name="from" defaultValue={sp.from} /></div>
+            <div><label>יציאה</label><input type="date" name="to" defaultValue={sp.to} /></div>
+            <div><label>טלפון הלקוח (לזיהוי לקוח חוזר)</label><input name="cust_phone" inputMode="tel" defaultValue={sp.cust_phone} /></div>
+            <div><label>מרחק מקסימלי מהציון (מטרים)</label><input type="number" name="max_dist" min={0} defaultValue={sp.max_dist} /></div>
+            <div>
+              <label>מצב הדירה</label>
+              <select name="condition" defaultValue={sp.condition ?? ""}>
+                <option value="">הכול</option>
+                {Object.entries(CONDITION_HE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div><label>קומה (0 = קרקע)</label><input type="number" name="floor" defaultValue={sp.floor} /></div>
+            <div><label>מקלחות (לפחות)</label><input type="number" name="showers" min={0} defaultValue={sp.showers} /></div>
+            <div><label>שירותים (לפחות)</label><input type="number" name="toilets" min={0} defaultValue={sp.toilets} /></div>
+            <div><label>סלון (מ"ר לפחות)</label><input type="number" name="sqm" min={0} defaultValue={sp.sqm} /></div>
+            <div><label>ספות נפתחות (לפחות)</label><input type="number" name="sofa_beds" min={0} defaultValue={sp.sofa_beds} /></div>
+            <div><label>מיטות תינוק (לפחות)</label><input type="number" name="cribs" min={0} defaultValue={sp.cribs} /></div>
+            <div><label>חניות (לפחות)</label><input type="number" name="parking" min={0} defaultValue={sp.parking} /></div>
+          </div>
+          <h3>מאפיינים נדרשים</h3>
           <div className="checks">
             {[...COLUMN_FLAGS, ...AMENITIES].map((f) => (
               <label key={f.key}><input type="checkbox" name={flagKey(f.key)} value="1" defaultChecked={query.flags.includes(f.key)} /> {f.label}</label>
             ))}
           </div>
-        </details>
-        <details open={query.must.length > 0}>
-          <summary>מה חובה (ולא רק רצוי)</summary>
+          <h3>מה חובה (ולא רק רצוי)</h3>
           <div className="checks">
-            {[{ key: "guests", label: "מספר המיטות" }, { key: "rooms", label: "חדרים" }, { key: "budget", label: "התקציב" }, { key: "dist", label: "המרחק מהציון" }, ...COLUMN_FLAGS, ...AMENITIES].map((f) => (
+            {[{ key: "guests", label: "מספר המיטות" }, { key: "rooms", label: "חדרים" }, { key: "budget", label: "התקציב" }, { key: "dist", label: "המרחק מהציון" }, { key: "walk", label: "זמן ההליכה" }, ...COLUMN_FLAGS, ...AMENITIES].map((f) => (
               <label key={f.key}><input type="checkbox" name={`must_${f.key}`} value="1" defaultChecked={query.must.includes(f.key)} /> {f.label}</label>
             ))}
           </div>
         </details>
-        <p className="muted">דירה שלא עונה על דרישה לא נעלמת: היא מוצגת עם סימון ⚠ מה חסר בה, ומדורגת אחרי המתאימות לגמרי.</p>
         <button className="primary">חיפוש</button>
       </form>
 
       {sp.err && <p className="err">{sp.err}</p>}
 
-      {r && (
+      {out && (
         <>
-          <p className="muted">{fmtDate(r.checkIn)} עד {fmtDate(r.checkOut)}{out?.returning && ` · לקוח חוזר: ${out.returning.name} (${out.returning.bookings} הזמנות קודמות)`} · {exact.length} מתאימות לגמרי{near.length > 0 && ` · ${near.length} כמעט מתאימות`}</p>
+          <p className="muted">{dated ? `${fmtDate(r!.checkIn)} עד ${fmtDate(r!.checkOut)}` : "בלי תאריכים: הדירוג לפי שאר הדרישות בלבד"}{out?.returning && ` · לקוח חוזר: ${out.returning.name} (${out.returning.bookings} הזמנות קודמות)`} · {exact.length} מתאימות לגמרי{near.length > 0 && ` · ${near.length} כמעט מתאימות`}</p>
           {exact.length === 0 && near.length > 0 && <p className="muted">אין דירה שעונה על כל הדרישות. אלה הקרובות ביותר:</p>}
           {exact.length === 0 && near.length === 0 && <p className="muted">לא נמצאה דירה קרובה. אפשר להרחיב תאריכים או לוותר על חלק מהדרישות.</p>}
           {exact.map((row) => <ResultCard key={row.apt.id} row={row} />)}
@@ -207,7 +215,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
               <ul>{out!.held.map((h, i) => <li key={i}>{h.name}: נשמרת עד {new Date(h.until).toLocaleTimeString("he-IL", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" })}, ואם לא תשולם מקדמה היא תתפנה</li>)}</ul>
             </details>
           )}
-          {exact.length === 0 && (
+          {exact.length === 0 && dated && (
             <form action={addToWaitlist} className="card">
               <h3>לשמור את הבקשה ברשימת המתנה</h3>
               <input type="hidden" name="back" value={back} />
@@ -217,11 +225,6 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
               </div>
               <button>הוסף לרשימת המתנה</button>
             </form>
-          )}
-          {skipped.length > 0 && (
-            <details className="card"><summary>דירות פנויות שלא ניתן לתמחר ({skipped.length})</summary>
-              <ul>{skipped.map((s, i) => <li key={i}>{s.name}: {s.reason}</li>)}</ul>
-            </details>
           )}
         </>
       )}
