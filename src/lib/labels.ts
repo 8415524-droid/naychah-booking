@@ -1,4 +1,4 @@
-export const ROLE_HE: Record<string, string> = { admin: "מנהל", agent: "טלפנית", owner: "בעל דירה", none: "ללא הרשאה" };
+export const ROLE_HE: Record<string, string> = { admin: "מנהל", agent: "טלפנית", owner: "בעל דירה", partner: "שותף (צפייה בכספים)", vendor: "ספק תחזוקה", none: "ללא הרשאה" };
 
 export const PERIOD_HE: Record<string, string> = {
   thu_sat: "חמישי עד שבת",

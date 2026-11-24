@@ -11,7 +11,7 @@ async function saveUser(fd: FormData) {
   const id = String(fd.get("id"));
   const role = String(fd.get("role"));
   if (id === user.id) return; // המנהל לא משנה לעצמו תפקיד
-  if (!["admin", "agent", "owner", "none"].includes(role)) return;
+  if (!["admin", "agent", "owner", "partner", "vendor", "none"].includes(role)) return;
   const ownerId = role === "owner" ? String(fd.get("owner_id") || "") || null : null;
   await supabase.from("profiles").update({ role, owner_id: ownerId }).eq("id", id);
   revalidatePath("/users");

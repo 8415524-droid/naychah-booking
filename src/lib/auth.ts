@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export type Role = "admin" | "agent" | "owner" | "none";
+export type Role = "admin" | "agent" | "owner" | "partner" | "vendor" | "none";
 
 export async function getSession(allowed?: Role[]) {
   const supabase = await createClient();
