@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
+import Collapsible from "@/components/Collapsible";
 import Shell from "@/components/Shell";
 import { fmtDate } from "@/lib/weekends";
 
@@ -65,8 +66,8 @@ export default async function Booking({ params, searchParams }: { params: Promis
       )}
 
       {status === "hold" && (
-        <form className="card" action={pay}>
-          <h2>רישום מקדמה</h2>
+        <Collapsible title="רישום מקדמה" summary={`נותר ${remaining} ₪`}>
+        <form action={pay}>
           <p className="muted">לא לרשום כאן מספר כרטיס אשראי. רק אסמכתא או 4 ספרות אחרונות.</p>
           <input type="hidden" name="booking_id" value={id} />
           <div className="grid2">
@@ -81,6 +82,7 @@ export default async function Booking({ params, searchParams }: { params: Promis
           {err && <p className="err">{err}</p>}
           <button className="primary">רשום תשלום</button>
         </form>
+        </Collapsible>
       )}
 
       {(status === "hold" || status === "confirmed") && (
