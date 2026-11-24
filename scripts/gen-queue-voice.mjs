@@ -4,7 +4,7 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 const ALL_KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4].slice(Number(process.env.SKIP_KEYS) || 0).filter(Boolean); // SKIP_KEYS=3 משאיר רק את מפתח 4
 const KEYS = process.env.ONLY_KEY ? [ALL_KEYS[Number(process.env.ONLY_KEY) - 1]].filter(Boolean) : ALL_KEYS; // ONLY_KEY=2 משתמש רק במפתח 2
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
-const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): קול גברי בוגר, חם, בטוח בעצמו ורגוע, קצב בינוני נינוח, עברית רגילה בלי הטעמה במלעיל. הפסקה ברורה בין המשפטים ובין האפשרויות, כמו שירות לקוחות אדיב ומכבד. ";
+const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): קול גברי מבוגר, חם ובטוח, בטון גבוה יותר ונמרץ ומאיר פנים, אנרגטי ומזמין. הקראה אחת רציפה וזורמת לגמרי, בלי שום הפסקה באמצע, כל המשפטים צמודים זה לזה. המילה הַקִּישׁוּ בעברית תקנית עם דגש חזק באות ק (הַקִּישׁוּ, כמו ha-kishu, לא הַכִּישׁוּ). המילה נַיְיחַא בהטעמה במלעיל (ההברה הראשונה). "; // זהה לסגנון הפתיח
 const READ_ONLY = "\n\nהקרא עכשיו את הטקסט הבא בלבד, מילה במילה, בלי להוסיף שום מילה ובלי לשנות או להשמיט, וסיים מיד בסופו:\n";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/queue-clips.json", "utf8"));
 mkdirSync("public/audio/queue-speech", { recursive: true });
@@ -28,7 +28,7 @@ for (const c of ALL) {
     if (!b64) throw new Error("לא התקבל שמע");
     const pcm = `/tmp/${c.key}.pcm`;
     writeFileSync(pcm, Buffer.from(b64, "base64"));
-    execFileSync("ffmpeg", ["-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", pcm, "-af", "loudnorm=I=-16", "-ar", "24000", "-b:a", "64k", out], { stdio: "inherit" });
+    execFileSync("ffmpeg", ["-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", pcm, "-af", "atempo=1.12,loudnorm=I=-16", "-ar", "24000", "-b:a", "96k", out], { stdio: "inherit" });
     console.log("נוצר", c.key);
   } catch (e) { failed++; console.log("נכשל", c.key, String(e).slice(0, 200)); }
 }
