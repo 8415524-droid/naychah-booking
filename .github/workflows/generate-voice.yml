@@ -10,6 +10,10 @@ on:
         description: 'מפתחות קליפים בלבד, מופרדים בפסיקים (למשל welcome). ריק = הכול'
         required: false
         default: ''
+      skip_keys:
+        description: 'כמה מפתחות מההתחלה לדלג (0 = כולם)'
+        required: false
+        default: '0'
 permissions:
   contents: write
 jobs:
@@ -27,6 +31,7 @@ jobs:
           GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
           VOICES: ${{ inputs.voices }}
           ONLY: ${{ inputs.only }}
+          SKIP_KEYS: ${{ inputs.skip_keys }}
       - name: commit audio
         if: always()
         run: |
