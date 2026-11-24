@@ -3,6 +3,10 @@ import { getSession } from "@/lib/auth";
 import Shell from "@/components/Shell";
 
 const FIELDS: { key: string; label: string; hint: string }[] = [
+  { key: "company_name", label: "שם החברה (לקבלות והסכמים)", hint: "מופיע בראש הקבלה" },
+  { key: "company_id", label: "ח.פ / עוסק מורשה", hint: "מופיע בקבלה ובהסכם" },
+  { key: "company_address", label: "כתובת החברה", hint: "מופיעה בקבלה ובהסכם" },
+  { key: "company_phone", label: "טלפון החברה", hint: "מופיע בקבלה ובהסכם" },
   { key: "secretary_phone", label: "טלפון המזכירה (שלוחה 1)", hint: "אליו מועברות שיחות הזמנה כשאין תור" },
   { key: "service_phone", label: "טלפון שירות לקוחות (שלוחה 3)", hint: "אם ריק, עובר למזכירה" },
   { key: "queue_router_id_service", label: "מזהה תור שירות לקוחות בטכנוליין", hint: "אם מוגדר, שלוחה 3 מכניסה לתור שירות" },
@@ -37,7 +41,7 @@ export default async function Settings() {
           <div><label>אחוז מקדמה</label><input type="number" name="deposit_percent" min={1} max={100} defaultValue={v("deposit_percent") || 12} /></div>
           <div><label>משך תפיסה זמנית (דקות)</label><input type="number" name="hold_minutes" min={1} defaultValue={v("hold_minutes") || 30} /></div>
         </div>
-        <h2>מרכזייה</h2>
+        <h2>פרטי חברה ומרכזייה</h2>
         {FIELDS.map((f) => (
           <div key={f.key}><label>{f.label}</label><input name={f.key} defaultValue={v(f.key)} /><span className="muted">{f.hint}</span></div>
         ))}
