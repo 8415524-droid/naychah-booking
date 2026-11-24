@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import ApartmentMap from "@/components/ApartmentMap";
 import Shell from "@/components/Shell";
 import { addDays, depositFor, nowInJerusalem, quote, type PricingRule } from "@/lib/pricing";
 import { fmtDate, upcomingWeekends } from "@/lib/weekends";
@@ -148,6 +149,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
               {detailsLine(apt) && <p className="muted">{detailsLine(apt)}</p>}
               {apt.features?.length > 0 && <p className="muted">{apt.features.join(" · ")}</p>}
               {apt.notes && <p className="muted">{apt.notes}</p>}
+              <ApartmentMap address={apt.address} name={apt.name} />
               <form action={closeBooking}>
                 <input type="hidden" name="apartment_id" value={apt.id} />
                 <input type="hidden" name="check_in" value={r.checkIn} />

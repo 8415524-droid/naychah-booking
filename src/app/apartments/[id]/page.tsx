@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
+import ApartmentMap from "@/components/ApartmentMap";
 import Shell from "@/components/Shell";
 import ApartmentFields, { parseApartment } from "@/components/ApartmentFields";
 import { PERIOD_HE, detailsLine } from "@/lib/labels";
@@ -58,6 +59,8 @@ export default async function Apartment({ params, searchParams }: {
         <h1>{apt.name} <span className="muted">· {apt.owners?.name}</span></h1>
         <Link className="btn" href={`/apartments/${id}/calendar`}>יומן וסנכרון</Link>
       </div>
+
+      <div className="card"><ApartmentMap address={apt.address} name={apt.name} defaultOpen /></div>
 
       {canEdit ? (
         <form className="card" action={saveApartment}>
