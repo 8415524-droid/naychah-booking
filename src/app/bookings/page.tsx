@@ -13,7 +13,7 @@ export default async function Bookings() {
     .order("created_at", { ascending: false }).limit(100);
   return (
     <Shell role={role} name={name}>
-      <h1>הזמנות</h1>
+      <div className="row"><h1>הזמנות</h1>{role !== "owner" && <Link className="btn" href="/search">+ הזמנה חדשה</Link>}</div>
       <div className="card">
         <DataTable
           filename="bookings"
