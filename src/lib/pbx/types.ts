@@ -23,7 +23,7 @@ export function pbxFiles(text: string): PbxFile[] {
   if (!key) return [{ text }];
   let ok = exists.get(key);
   if (ok === undefined) { ok = existsSync(join(process.cwd(), "public", "audio", "clips", `${key}.mp3`)); exists.set(key, ok); }
-  return ok ? [{ fileLink: `${CLIP_BASE}/${key}.mp3`, fileName: `${key}_v7` }] : [{ text }];
+  return ok ? [{ fileLink: `${CLIP_BASE}/${key}.mp3`, fileName: `${key}_v8` }] : [{ text }];
 }
 
 export const say = (text: string): PbxModule => ({ type: "simpleMessage", files: pbxFiles(text) });
