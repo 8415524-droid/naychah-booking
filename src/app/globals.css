@@ -62,6 +62,51 @@ button.cell:hover { border-color:var(--amber); }
 .cell.hold { background:#3a2650; border-color:#6a4a96; }
 .map-box { margin:10px 0; }
 .map-frame { width:100%; height:320px; border:1px solid var(--line); border-radius:12px; margin-top:10px; background:var(--panel-2); }
+
+/* ===== מבנה האפליקציה: תפריט צד, כותרת, חיפוש גלובלי ===== */
+header.top { position:sticky; top:0; z-index:30; gap:12px; }
+.top-start { display:flex; align-items:center; gap:10px; }
+.menu-btn { display:none; background:transparent; color:var(--cream); border:1px solid var(--line); border-radius:8px; padding:4px 10px; font-size:18px; cursor:pointer; }
+.app { display:flex; align-items:flex-start; min-height:calc(100vh - 64px); }
+.app main { flex:1; min-width:0; max-width:1100px; margin:0 auto; }
+.side { width:232px; flex:none; position:sticky; top:64px; height:calc(100vh - 64px); overflow-y:auto; background:var(--panel-2); border-inline-end:1px solid var(--line); padding:14px 10px; display:flex; flex-direction:column; justify-content:space-between; transition:width .15s; }
+.side--min { width:64px; }
+.side-title { font-size:.7rem; letter-spacing:.1em; color:var(--muted); padding:10px 10px 4px; }
+.side-link { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px; color:var(--cream); text-decoration:none; position:relative; }
+.side-link:hover { background:rgba(255,255,255,.05); }
+.side-link--on { background:rgba(242,169,59,.10); color:var(--amber); }
+.side-link--on::after { content:""; position:absolute; inset-inline-end:0; top:8px; bottom:8px; width:3px; border-radius:2px; background:var(--amber); }
+.side-ico { width:22px; text-align:center; flex:none; }
+.side--min .side-label, .side--min .side-title { display:none; }
+.side--min .side-link { justify-content:center; }
+.side-collapse { align-self:flex-end; background:transparent; border:1px solid var(--line); color:var(--muted); border-radius:8px; width:34px; height:30px; cursor:pointer; }
+.search-btn { display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; min-width:220px; }
+.search-btn:hover { border-color:var(--amber); color:var(--amber); }
+.search-btn kbd { margin-inline-start:auto; font-size:.7rem; border:1px solid var(--line); border-radius:5px; padding:0 5px; }
+.gs-scrim { position:fixed; inset:0; background:rgba(10,6,12,.7); z-index:60; display:flex; justify-content:center; align-items:flex-start; padding-top:12vh; }
+.gs { width:min(560px,92vw); background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+.gs-list { max-height:50vh; overflow:auto; margin-top:10px; }
+.gs-hit { display:flex; gap:10px; align-items:center; padding:9px 10px; border-radius:9px; color:var(--cream); text-decoration:none; }
+.gs-hit:hover { background:rgba(255,255,255,.06); }
+.gs-kind { font-size:.7rem; color:var(--amber); border:1px solid var(--line); border-radius:6px; padding:0 6px; min-width:58px; text-align:center; }
+.side-scrim { display:none; }
+@media (max-width:900px) {
+  .menu-btn { display:block; }
+  .search-btn { min-width:0; } .search-btn-text, .search-btn kbd { display:none; }
+  .side { position:fixed; top:64px; inset-inline-start:0; z-index:40; transform:translateX(100%); width:240px; transition:transform .18s; }
+  .side--min { width:240px; }
+  .side--min .side-label, .side--min .side-title { display:initial; }
+  .side-collapse { display:none; }
+  .side--open { transform:none; }
+  .side-scrim { display:block; position:fixed; inset:0; z-index:35; background:rgba(10,6,12,.6); }
+  .who { display:none; }
+}
+/* דשבורד */
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:16px; }
+a.stat { display:block; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; text-decoration:none; color:var(--cream); }
+a.stat:hover { border-color:var(--amber); }
+.stat-n { font-size:2rem; font-weight:700; color:var(--amber); line-height:1.1; }
+.stat-l { color:var(--muted); font-size:.85rem; }
 .logo-card { background:#fff; border-radius:16px; padding:8px 12px; box-shadow:0 8px 24px rgba(0,0,0,.35); }
 .logo-card img { width:100%; height:auto; display:block; }
 .login-logo { width:min(260px,70%); margin:8px auto 4px; }

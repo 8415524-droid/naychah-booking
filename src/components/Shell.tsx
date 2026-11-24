@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ROLE_HE } from "@/lib/labels";
 import type { Role } from "@/lib/auth";
+import Sidebar from "@/components/Sidebar";
+import GlobalSearch from "@/components/GlobalSearch";
+import MenuButton from "@/components/MenuButton";
+import { navGroups } from "@/lib/nav";
 
 async function logout() {
   "use server";
@@ -15,23 +19,19 @@ export default function Shell({ role, name, children }: { role: Role; name: stri
   return (
     <>
       <header className="top">
-        <nav className="nav">
+        <div className="top-start">
+          <MenuButton />
           <Link href="/" className="brand"><span className="logo-tile"><img src="/logo-full.webp" width={72} height={44} alt="נייחא" /></span></Link>
-          {(role === "admin" || role === "agent") && <Link href="/search">חיפוש</Link>}
-          {role !== "none" && <Link href="/bookings">הזמנות</Link>}
-          {(role === "admin" || role === "agent") && <Link href="/customers">לקוחות</Link>}
-          {role === "admin" && <Link href="/reports">דוחות</Link>}
-          {role !== "none" && <Link href="/apartments">דירות</Link>}
-          {role === "admin" && <Link href="/owners">בעלי דירות</Link>}
-          {role === "admin" && <Link href="/users">משתמשים</Link>}
-          {role === "admin" && <Link href="/settings">הגדרות</Link>}
-          {(role === "admin" || role === "agent") && <a href="/old/">המערכת הישנה</a>}
-        </nav>
+        </div>
+        <GlobalSearch />
         <form action={logout}>
           <span className="who">{name} · {ROLE_HE[role]}</span> <button>יציאה</button>
         </form>
       </header>
-      <main>{children}</main>
+      <div className="app">
+        <Sidebar groups={navGroups(role)} />
+        <main>{children}</main>
+      </div>
     </>
   );
 }
