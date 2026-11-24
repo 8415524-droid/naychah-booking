@@ -1,23 +1,49 @@
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { locateApartment } from "@/lib/locate";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
+import Collapsible from "@/components/Collapsible";
 import DataTable from "@/components/DataTable";
 import Shell from "@/components/Shell";
 
-export default async function Apartments() {
+async function locateMissing() {
+  "use server";
+  const { supabase } = await getSession(["admin"]);
+  const { data } = await supabase.from("apartments").select("id, address, lat, lng, walk_minutes").is("walk_minutes", null).not("address", "is", null).limit(6);
+  let done = 0, failed = 0;
+  for (const a of data ?? []) {
+    const r = await locateApartment(supabase, a);
+    if (r.ok) done++; else failed++;
+    await new Promise((res) => setTimeout(res, 1100)); // מגבלת השירות החופשי: בקשה לשנייה
+  }
+  revalidatePath("/apartments");
+  redirect(`/apartments?located=${done}&failed=${failed}`);
+}
+
+export default async function Apartments({ searchParams }: { searchParams: Promise<{ located?: string; failed?: string }> }) {
+  const sp = await searchParams;
   const { supabase, role, name } = await getSession(["admin", "agent", "owner"]);
   const { data: apts } = await supabase
-    .from("apartments").select("id, name, beds, rooms, short_code, active, owners(name)").order("name");
+    .from("apartments").select("*, owners(name)").order("name");
   return (
     <Shell role={role} name={name}>
       <div className="row"><h1>דירות</h1>
         {role !== "agent" && <Link className="btn" href="/apartments/new">הוספת דירה</Link>}
       </div>
+      {role === "admin" && (
+        <Collapsible title="מיקום הדירות" summary={`${(apts ?? []).filter((a: any) => a.walk_minutes != null).length} מתוך ${apts?.length ?? 0} אותרו`}>
+          {sp.located !== undefined && <p className="ok">אותרו {sp.located} דירות{Number(sp.failed) > 0 && `, ${sp.failed} לא הצליחו (בדוק כתובת בדף הדירה)`}.</p>}
+          <p className="muted">מחשב זמן הליכה מהציון לפי הכתובת. כל לחיצה מטפלת בעד 6 דירות שטרם אותרו.</p>
+          <form action={locateMissing}><button className="btn">אתר דירות שטרם אותרו</button></form>
+        </Collapsible>
+      )}
       <div className="card">
         <DataTable
           filename="apartments"
           columns={[
             { key: "code", label: "#" }, { key: "name", label: "דירה" }, { key: "owner", label: "בעלים", filter: true },
-            { key: "beds", label: "מיטות", filter: true }, { key: "rooms", label: "חדרים", filter: true }, { key: "open", label: "" },
+            { key: "beds", label: "מיטות", filter: true }, { key: "rooms", label: "חדרים", filter: true }, { key: "walk", label: "הליכה לציון", filter: true }, { key: "open", label: "" },
           ]}
           rows={(apts ?? []).map((a: any) => ({
             id: a.id,
@@ -27,6 +53,7 @@ export default async function Apartments() {
               owner: { text: a.owners?.name ?? "" },
               beds: { text: String(a.beds ?? "") },
               rooms: { text: String(a.rooms ?? "") },
+              walk: { text: a.walk_minutes != null ? `${a.walk_minutes} דק'` : "לא אותרה" },
               open: { text: "", node: <Link href={`/apartments/${a.id}`}>{role === "agent" ? "צפייה" : "עריכה"}</Link> },
             },
           }))}
