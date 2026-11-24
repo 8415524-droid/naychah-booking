@@ -1,7 +1,7 @@
 // הקראות תור ההמתנה (דיבור בלבד, בלי מוזיקה) בקול Algenib. הערבוב עם המוזיקה: scripts/mix-queue.sh
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
-const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean);
+const KEYS = [process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4, process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean); // 3 ו-4 ראשונים: טריים
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
 const STYLE = "קרא בעברית רגילה, קריאה פשוטה וברורה וללא הטעמה במלעיל. בקול גברי מבוגר, מעט צרוד, חם ומזמין, כמו חסיד מבוגר שמקבל אורחים בכבוד. בין המשפטים הפסקה קצרה. ";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/queue-clips.json", "utf8"));
