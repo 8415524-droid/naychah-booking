@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { ownerFlow, parseDayMonth, weekendNights, type OwnerDeps } from "./owner-flow";
 import { mainFlow, type MainDeps } from "./main-flow";
@@ -117,13 +119,21 @@ describe("קו לקוחות", () => {
   });
 
   it("תור: אחרי סבב בלי מענה אומרים מספר בתור ומציעים הודעה, ואז ממשיכים או מקליטים", async () => {
-    const dq = { ...d, settings: async () => ({ secretary: "0501112222", service: "", routerId: "77", musicUrl: "" }), queue: { position: async () => 3, leave: async () => {} } };
+    const dq = { ...d, settings: async () => ({ secretary: "0501112222", service: "", routerId: "77", musicUrl: "" }), queue: { position: async () => 11, leave: async () => {} } }; // מעל 10 אין הקראה מוקלטת, לכן הקראה ממוכנת
     const r1: any = await mainFlow({ main: "1", PBXcallId: "c1", queueResult1: "NOANSWER" }, dq);
-    expect(r1[0].files[0].text).toContain("מספר 3");
+    expect(r1[0].files[0].text).toContain("מספר 11");
     expect(r1[1]).toMatchObject({ type: "simpleMenu", name: "waitq1" });
     const r2: any = await mainFlow({ main: "1", PBXcallId: "c1", queueResult1: "NOANSWER", waitq1: "4" }, dq);
     expect(r2[0]).toMatchObject({ type: "record", name: "msg" });
     const r3: any = await mainFlow({ main: "1", PBXcallId: "c1", queueResult1: "NOANSWER", waitq1: "ERROR" }, dq);
     expect(r3[0]).toMatchObject({ type: "queueRouting", name: "queueResult2" });
+  });
+
+  it("תור: מקום 1 עד 10 מושמע מקובץ מוקלט אם הוא קיים", async () => {
+    const dq = { ...d, settings: async () => ({ secretary: "0501112222", service: "", routerId: "77", musicUrl: "" }), queue: { position: async () => 3, leave: async () => {} } };
+    const r1: any = await mainFlow({ main: "1", PBXcallId: "c1", queueResult1: "NOANSWER" }, dq);
+    const clip = existsSync(join(process.cwd(), "public/audio/queue/queue_pos_3.mp3"));
+    if (clip) expect(r1[0]).toMatchObject({ type: "simpleMenu", name: "waitq1", enabledKeys: "4", files: [{ fileName: "queue_pos_3_v1" }] });
+    else expect(r1[0].files[0].text).toContain("מספר 3");
   });
 });
