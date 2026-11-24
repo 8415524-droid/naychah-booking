@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) throw new Error("חסר GEMINI_API_KEY");
-const STYLE = "קרא בעברית בהגייה חסידית אשכנזית: קמץ נשמע כמו או, תי\"ו רפויה נשמעת כמו ס, והטעמה במלעיל. בקול גברי חם, רגוע ומכבד, בקצב נעים וברור, כמו חסיד שמקבל אורחים בכבוד. בין המשפטים הפסקה קצרה. ";
+const STYLE = "קרא בעברית רגילה, קריאה פשוטה וטבעית, בלי הגייה חסידית ובלי הטעמה מיוחדת. בקול גברי חם, רגוע ומכבד, בקצב נעים וברור. בין המשפטים הפסקה קצרה. ";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/queue-clips.json", "utf8"));
 mkdirSync("public/audio/queue-speech", { recursive: true });
 let failed = 0;

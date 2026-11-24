@@ -11,7 +11,7 @@ for f in public/audio/queue-speech/*.mp3; do
    "[0:a]aresample=24000,pan=mono|c0=0.5*c0+0.5*c1,atrim=0:$(echo "$d + 3" | bc),volume=0.55,afade=t=in:d=0.4,afade=t=out:st=$(echo "$d + 1.5" | bc):d=1.5[m];\
     [1:a]adelay=700,asplit[v][s];\
     [m][s]sidechaincompress=threshold=0.02:ratio=8:attack=20:release=500[duck];\
-    [duck][v]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[o]" \
-   -map "[o]" -ar 22050 -ac 1 -b:a 64k "public/audio/queue/$k.mp3"
+    [duck][v]amix=inputs=2:duration=first:normalize=0,highpass=f=300,lowpass=f=3400,acompressor=threshold=0.1:ratio=3,loudnorm=I=-16:TP=-2,aresample=8000[o]" \
+   -map "[o]" -ar 8000 -ac 1 -b:a 32k "public/audio/queue/$k.mp3"
   echo "מוכן $k"
 done
