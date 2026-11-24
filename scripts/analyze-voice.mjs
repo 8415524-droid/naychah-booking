@@ -8,7 +8,7 @@ const prompt = `זו הקלטה של בעל האתר מקריא פתיח למר�
 let last = "";
 for (let i = 0; i < 6; i++) {
   const key = KEYS[i % KEYS.length];
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify({ contents: [{ parts: [{ inlineData: { mimeType: "audio/mp3", data: b64 } }, { text: prompt }] }] }),
