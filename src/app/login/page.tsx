@@ -27,6 +27,7 @@ export default function Login() {
 
   return (
     <main style={{ maxWidth: 420 }}>
+      <div className="logo-card login-logo"><img src="/logo-full.webp" width={720} height={441} alt="נייחא" /></div>
       <h1>ברוכים הבאים לנייחא</h1>
       <form className="card" onSubmit={submit}>
         <label htmlFor="email">אימייל</label>
