@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 
-const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean); // שני מפתחות מחלקים את העומס על מגבלת הקצב
+const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3].filter(Boolean); // שני מפתחות מחלקים את העומס על מגבלת הקצב
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
 let keyIdx = 0;
 const VOICE = process.env.VOICE || "Algenib";
