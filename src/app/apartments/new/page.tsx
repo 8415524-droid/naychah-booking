@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { locateMissing } from "@/lib/locate";
 import { getSession } from "@/lib/auth";
 import Shell from "@/components/Shell";
 import ApartmentFields, { parseApartment } from "@/components/ApartmentFields";
@@ -10,6 +12,7 @@ async function createApartment(fd: FormData) {
   if (!owner_id) return;
   const { data, error } = await supabase.from("apartments").insert({ ...parseApartment(fd), owner_id }).select("id").single();
   if (error) redirect("/apartments/new?err=" + encodeURIComponent(error.message.includes("short_code") ? "מספר הדירה הקצר כבר בשימוש" : "שגיאה בשמירה"));
+  after(async () => { await locateMissing(supabase, 1); });
   redirect(`/apartments/${data.id}`);
 }
 

@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { locateApartment } from "@/lib/locate";
+import { after } from "next/server";
+import { locateApartment, locateMissing } from "@/lib/locate";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import Collapsible from "@/components/Collapsible";
 import DataTable from "@/components/DataTable";
 import Shell from "@/components/Shell";
 
-async function locateMissing() {
+async function locateMissingNow() {
   "use server";
   const { supabase } = await getSession(["admin"]);
   const { data } = await supabase.from("apartments").select("id, address, lat, lng, walk_minutes").is("walk_minutes", null).not("address", "is", null).limit(6);
@@ -23,7 +24,9 @@ async function locateMissing() {
 
 export default async function Apartments({ searchParams }: { searchParams: Promise<{ located?: string; failed?: string }> }) {
   const sp = await searchParams;
+  // איתור אוטומטי ברקע של דירות שטרם אותרו (למנהל בלבד, כי רק לו יש הרשאת עדכון)
   const { supabase, role, name } = await getSession(["admin", "agent", "owner"]);
+  if (role === "admin") after(async () => { await locateMissing(supabase, 6); });
   const { data: apts } = await supabase
     .from("apartments").select("*, owners(name)").order("name");
   return (
@@ -34,8 +37,8 @@ export default async function Apartments({ searchParams }: { searchParams: Promi
       {role === "admin" && (
         <Collapsible title="מיקום הדירות" summary={`${(apts ?? []).filter((a: any) => a.walk_minutes != null).length} מתוך ${apts?.length ?? 0} אותרו`}>
           {sp.located !== undefined && <p className="ok">אותרו {sp.located} דירות{Number(sp.failed) > 0 && `, ${sp.failed} לא הצליחו (בדוק כתובת בדף הדירה)`}.</p>}
-          <p className="muted">מחשב זמן הליכה מהציון לפי הכתובת. כל לחיצה מטפלת בעד 6 דירות שטרם אותרו.</p>
-          <form action={locateMissing}><button className="btn">אתר דירות שטרם אותרו</button></form>
+          <p className="muted">הדירות מאותרות אוטומטית לפי הכתובת (עד 6 בכל כניסה לעמוד). אם משהו תקוע, אפשר להפעיל ידנית.</p>
+          <form action={locateMissingNow}><button className="btn">אתר דירות שטרם אותרו</button></form>
         </Collapsible>
       )}
       <div className="card">
