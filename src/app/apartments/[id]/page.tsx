@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { getSession } from "@/lib/auth";
 import Collapsible from "@/components/Collapsible";
 import { parseCoords, walkLabel, TZIYUN } from "@/lib/geo";
-import { locateApartment } from "@/lib/locate";
+import { locateApartment, locateMissing } from "@/lib/locate";
 import ApartmentMap from "@/components/ApartmentMap";
 import Shell from "@/components/Shell";
 import ApartmentFields, { parseApartment } from "@/components/ApartmentFields";
@@ -14,8 +15,17 @@ async function saveApartment(fd: FormData) {
   "use server";
   const { supabase, role } = await getSession(["admin", "owner"]);
   const id = String(fd.get("id"));
-  const { error } = await supabase.from("apartments").update({ ...parseApartment(fd), active: fd.get("active") === "on" }).eq("id", id);
+  const { data: before } = await supabase.from("apartments").select("address").eq("id", id).single();
+  const parsed = parseApartment(fd);
+  const { error } = await supabase.from("apartments").update({ ...parsed, active: fd.get("active") === "on" }).eq("id", id);
   void role;
+  // כתובת חדשה או שונה: המיקום וזמן ההליכה מחושבים לבד ברקע
+  if (!error && parsed.address && parsed.address !== before?.address) {
+    after(async () => {
+      const { data: apt } = await supabase.from("apartments").select("id, address, lat, lng").eq("id", id).single();
+      if (apt) await locateApartment(supabase, apt, { fromAddress: true });
+    });
+  }
   if (error) redirect(`/apartments/${id}?err=` + encodeURIComponent(error.message.includes("short_code") ? "מספר הדירה הקצר כבר בשימוש" : "שגיאה בשמירה"));
   revalidatePath(`/apartments/${id}`);
   redirect(`/apartments/${id}?saved=1`);
@@ -80,6 +90,10 @@ export default async function Apartment({ params, searchParams }: {
   if (!apt) notFound();
   const { data: rules } = await supabase.from("pricing_rules").select("*").eq("apartment_id", id).order("period_type");
   const canEdit = role !== "agent";
+  // דירה עם כתובת שעוד לא אותרה: מאתרים אוטומטית ברקע (הרענון הבא כבר יציג)
+  if (canEdit && apt.address && apt.walk_minutes == null && apt.lat == null) {
+    after(async () => { await locateMissing(supabase, 1); });
+  }
 
   return (
     <Shell role={role} name={name}>
@@ -90,19 +104,19 @@ export default async function Apartment({ params, searchParams }: {
 
       <Collapsible title="מפה" summary={apt.address ?? "מירון"}><ApartmentMap address={apt.address} name={apt.name} lat={apt.lat} lng={apt.lng} defaultOpen /></Collapsible>
 
-      <Collapsible title="מיקום והליכה לציון" summary={apt.walk_minutes != null ? walkLabel(apt.walk_minutes) : "טרם אותרה"}>
+      <Collapsible title="מיקום והליכה לציון" summary={apt.walk_minutes != null ? walkLabel(apt.walk_minutes) : "מאותרת אוטומטית לפי הכתובת"}>
         {apt.walk_minutes != null
           ? <p><strong>{walkLabel(apt.walk_minutes)}</strong> <span className="muted">· כ-{apt.walk_meters} מטר · קואורדינטות {apt.lat?.toFixed(5)}, {apt.lng?.toFixed(5)}</span></p>
-          : <p className="muted">עדיין לא חושב זמן הליכה לדירה הזו.</p>}
+          : <p className="muted">המיקום וזמן ההליכה מחושבים אוטומטית לפי הכתובת. אם עוד לא מופיע, רענן בעוד רגע.</p>}
         {canEdit && (
           <>
             <form action={locate}>
               <input type="hidden" name="id" value={id} /><input type="hidden" name="mode" value="address" />
-              <button className="btn">אתר לפי הכתובת וחשב הליכה לציון</button>
+              <button className="btn">חשב מחדש לפי הכתובת</button>
             </form>
             <form action={saveCoords} style={{ marginTop: 12 }}>
               <input type="hidden" name="id" value={id} />
-              <label>או הדבק מיקום מדויק מגוגל מפות (קליק ימני על הדירה → העתק קואורדינטות, או קישור)</label>
+              <label>אם הכתובת לא מדויקת: הדבק מיקום מגוגל מפות (קליק ימני על הדירה → העתק קואורדינטות, או קישור)</label>
               <input name="coords" placeholder="32.9812, 35.4411" dir="ltr" />
               <button className="btn" style={{ marginTop: 8 }}>שמור מיקום וחשב</button>
             </form>
