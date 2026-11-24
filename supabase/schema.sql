@@ -70,6 +70,10 @@ create table if not exists apartments (
   floor int,                          -- 0 = קרקע
   showers int check (showers is null or showers >= 0),
   toilets int check (toilets is null or toilets >= 0),
+  amenities text[] not null default '{}',   -- מאפייני חיפוש (ראו 011)
+  sofa_beds int check (sofa_beds is null or sofa_beds >= 0),
+  cribs int check (cribs is null or cribs >= 0),
+  parking_spots int check (parking_spots is null or parking_spots >= 0),
   -- חוקי זמן, כל בעל דירה קובע לעצמו וניתן לשינוי בכל עת
   early_cutoff_dow smallint not null default 4 check (early_cutoff_dow between 0 and 6), -- 4 = חמישי
   early_cutoff_time time not null default '12:00',
@@ -351,3 +355,22 @@ create policy set_admin on settings for all using (my_role() = 'admin') with che
 -- ---------- הרשאות הפעלה לפונקציות ----------
 revoke all on function create_hold, record_payment, cancel_booking, expire_holds from public, anon;
 grant execute on function create_hold, record_payment, cancel_booking to authenticated;
+
+-- רשימת המתנה לחיפוש (ראו updates/012-waitlist.sql)
+create table if not exists search_waitlist (
+  id uuid primary key default gen_random_uuid(),
+  customer_name text not null,
+  customer_phone text not null,
+  params text not null,
+  check_in date not null,
+  check_out date not null check (check_out > check_in),
+  guests int,
+  status text not null default 'open' check (status in ('open','closed')),
+  created_by uuid default auth.uid(),
+  created_at timestamptz not null default now()
+);
+create index if not exists search_waitlist_open on search_waitlist(status, check_in);
+alter table search_waitlist enable row level security;
+drop policy if exists waitlist_staff on search_waitlist;
+create policy waitlist_staff on search_waitlist for all
+  using (my_role() in ('admin','agent')) with check (my_role() in ('admin','agent'));
