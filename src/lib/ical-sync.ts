@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, nowInJerusalem } from "./pricing";
-import { isSafeIcalUrl, parseIcal, type IcalRange } from "./ical";
+import { isSafeIcalUrl, normalizeIcalUrl, parseIcal, type IcalRange } from "./ical";
 
 /** מאחד טווחים חופפים או סמוכים (המערכת אוסרת חסימות חופפות, ויומנים חיצוניים לא תמיד נקיים). */
 export function mergeRanges(ranges: IcalRange[]): IcalRange[] {
@@ -16,7 +16,7 @@ export function mergeRanges(ranges: IcalRange[]): IcalRange[] {
 
 /** מוריד יומן חיצוני. עוקב אחרי הפניות (בוקינג/אייר-בי-אן-בי מפנים), ובודק כל כתובת מחדש מול SSRF. */
 export async function fetchIcalText(url: string): Promise<{ text?: string; error?: string }> {
-  let cur = url;
+  let cur = normalizeIcalUrl(url);
   for (let hop = 0; hop < 4; hop++) {
     if (!isSafeIcalUrl(cur)) return { error: "כתובת היומן אינה תקינה (נדרש https לכתובת ציבורית)" };
     let res: Response;

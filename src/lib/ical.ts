@@ -33,6 +33,11 @@ export function parseIcal(text: string): IcalRange[] {
   return out;
 }
 
+/** webcal:// (אפל/אאוטלוק) הוא אותה כתובת ב-https. */
+export function normalizeIcalUrl(raw: string): string {
+  return raw.trim().replace(/^webcals?:\/\//i, "https://");
+}
+
 /** מגן מפני גישה לכתובות פנימיות (SSRF): רק https לשם מארח ציבורי. */
 export function isSafeIcalUrl(raw: string): boolean {
   let u: URL;

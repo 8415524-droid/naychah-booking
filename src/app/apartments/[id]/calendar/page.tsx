@@ -109,7 +109,12 @@ export default async function Calendar({ params, searchParams }: {
       <div className="card">
         <h2>סנכרון יומן</h2>
         <p><strong>ייצוא:</strong> הדבק את הכתובת הזו ביומן שלך (Google Calendar → הוספת יומן → מכתובת URL). היא סודית, אל תשתף אותה.</p>
-        <input readOnly value={feedUrl} onFocus={(e) => e.currentTarget.select()} />
+        <input readOnly value={feedUrl} />
+        <p className="row">
+          <a className="btn" href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(feedUrl.replace("https://", "webcal://"))}`} target="_blank" rel="noreferrer">הוסף ליומן גוגל</a>
+          <a className="btn" href={feedUrl.replace("https://", "webcal://")}>הוסף ליומן אפל / אאוטלוק</a>
+        </p>
+        <p className="muted">אין לך יומן עדיין? פתח יומן חדש (גוגל, אפל או אאוטלוק) והוסף אליו את הכתובת, והחסימות וההזמנות ייכנסו אליו ויתעדכנו לבד. ייבוא מיומן קיים (בכל סוג) מוגדר בעריכת הדירה, והוא מתעדכן כל שעה. כך הסנכרון דו-כיווני.</p>
         <p><strong>ייבוא:</strong> {apt.ical_import_url ? "מוגדרת כתובת יומן חיצוני." : "לא הוגדרה כתובת (מגדירים בעריכת הדירה)."}</p>
         {canEdit && (
           <form action={importIcal}>
