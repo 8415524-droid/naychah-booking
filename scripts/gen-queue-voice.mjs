@@ -1,9 +1,10 @@
 // הקראות תור ההמתנה (דיבור בלבד, בלי מוזיקה) בקול Algenib. הערבוב עם המוזיקה: scripts/mix-queue.sh
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
-const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4].slice(Number(process.env.SKIP_KEYS) || 0).filter(Boolean); // SKIP_KEYS=3 משאיר רק את מפתח 4
+const ALL_KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4, process.env.GEMINI_API_KEY_5, process.env.GEMINI_API_KEY_6].slice(Number(process.env.SKIP_KEYS) || 0).filter(Boolean); // SKIP_KEYS=3 משאיר רק את מפתח 4
+const KEYS = process.env.ONLY_KEY ? process.env.ONLY_KEY.split(",").map((k) => ALL_KEYS[Number(k) - 1]).filter(Boolean) : ALL_KEYS; // ONLY_KEY="5,6" משתמש רק במפתחות 5 ו-6
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
-const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): נימה נלהבת, שיווקית וחמה כמו מוכר כריזמטי בשוק אבל מכובד, קול גברי מבוגר מעט צרוד, קצב רציף ללא עצירות. ";
+const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): קול גברי מבוגר, חם ובטוח, בטון גבוה יותר ונמרץ ומאיר פנים, אנרגטי ומזמין. הקראה אחת רציפה וזורמת לגמרי, בלי שום הפסקה באמצע. הדיבור אנושי וטבעי, לא רובוטי: כל פעם שהמילה הַקִּישׁוּ חוזרת היא נשמעת קצת אחרת (גובה, הדגשה וקצב משתנים מעט, כמו אדם אמיתי שמדבר), ובכל מספר ההטעמה שונה במקצת. הַקִּישׁוּ בעברית תקנית עם דגש באות ק. המילה נַיְיחַא בהטעמה במלעיל (ההברה הראשונה, כמו NAY-cha). "; // זהה לפתיח (scripts/gen-voice.mjs)
 const READ_ONLY = "\n\nהקרא עכשיו את הטקסט הבא בלבד, מילה במילה, בלי להוסיף שום מילה ובלי לשנות או להשמיט, וסיים מיד בסופו:\n";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/queue-clips.json", "utf8"));
 mkdirSync("public/audio/queue-speech", { recursive: true });
@@ -27,7 +28,7 @@ for (const c of ALL) {
     if (!b64) throw new Error("לא התקבל שמע");
     const pcm = `/tmp/${c.key}.pcm`;
     writeFileSync(pcm, Buffer.from(b64, "base64"));
-    execFileSync("ffmpeg", ["-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", pcm, "-af", "loudnorm=I=-16", "-ar", "24000", "-b:a", "64k", out], { stdio: "inherit" });
+    execFileSync("ffmpeg", ["-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", pcm, "-af", "atempo=1.12,loudnorm=I=-16", "-ar", "24000", "-b:a", "96k", out], { stdio: "inherit" });
     console.log("נוצר", c.key);
   } catch (e) { failed++; console.log("נכשל", c.key, String(e).slice(0, 200)); }
 }
