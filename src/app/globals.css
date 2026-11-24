@@ -134,3 +134,9 @@ tr.dt-sel td { background:rgba(242,169,59,.08); }
 .cf-opt input { width:auto; }
 .bulkbar { position:sticky; bottom:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:var(--card); border:1px solid var(--amber); border-radius:12px; padding:10px 14px; margin-top:10px; }
 .linkbtn { background:none; border:0; color:var(--amber); cursor:pointer; font-family:inherit; padding:0; }
+.tags { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+.tag { font-size:13px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); }
+.tag.ok { color:#7fd49a; border-color:#2f5d3f; }
+.tag.gap { color:#f0c36b; border-color:#6b5320; }
+.tag.bad { color:#f08a8a; border-color:#6b2a2a; }
+.card.near { border-style:dashed; }

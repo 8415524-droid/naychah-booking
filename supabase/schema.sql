@@ -70,6 +70,10 @@ create table if not exists apartments (
   floor int,                          -- 0 = קרקע
   showers int check (showers is null or showers >= 0),
   toilets int check (toilets is null or toilets >= 0),
+  amenities text[] not null default '{}',   -- מאפייני חיפוש (ראו 007)
+  sofa_beds int check (sofa_beds is null or sofa_beds >= 0),
+  cribs int check (cribs is null or cribs >= 0),
+  parking_spots int check (parking_spots is null or parking_spots >= 0),
   -- חוקי זמן, כל בעל דירה קובע לעצמו וניתן לשינוי בכל עת
   early_cutoff_dow smallint not null default 4 check (early_cutoff_dow between 0 and 6), -- 4 = חמישי
   early_cutoff_time time not null default '12:00',

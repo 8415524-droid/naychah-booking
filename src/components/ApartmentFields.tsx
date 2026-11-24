@@ -1,3 +1,4 @@
+import { AMENITIES } from "@/lib/search-engine";
 import { CONDITION_HE, DOW_HE, EXTRAS, FEATURES } from "@/lib/labels";
 
 type Apt = Record<string, any> | null;
@@ -26,6 +27,17 @@ export default function ApartmentFields({ apt }: { apt: Apt }) {
         {EXTRAS.map((e) => (
           <label key={e.key}><input type="checkbox" name={e.key} defaultChecked={!!apt?.[e.key]} /> {e.label}</label>
         ))}
+      </div>
+      <h3>מאפייני חיפוש</h3>
+      <div className="checks">
+        {AMENITIES.map((a) => (
+          <label key={a.key}><input type="checkbox" name="amenities" value={a.key} defaultChecked={(apt?.amenities ?? []).includes(a.key)} /> {a.label}</label>
+        ))}
+      </div>
+      <div className="grid2">
+        <div><label>ספות נפתחות</label><input name="sofa_beds" type="number" min={0} defaultValue={apt?.sofa_beds ?? ""} /></div>
+        <div><label>מיטות תינוק</label><input name="cribs" type="number" min={0} defaultValue={apt?.cribs ?? ""} /></div>
+        <div><label>חניות</label><input name="parking_spots" type="number" min={0} defaultValue={apt?.parking_spots ?? ""} /></div>
       </div>
       <div className="grid2">
         <div><label>גודל סלון (מ"ר)</label><input name="living_room_sqm" type="number" min={1} defaultValue={apt?.living_room_sqm ?? ""} /></div>
@@ -85,6 +97,10 @@ export function parseApartment(fd: FormData) {
     showers: num("showers"),
     toilets: num("toilets"),
     features: fd.getAll("features").map(String),
+    amenities: fd.getAll("amenities").map(String).filter((k) => AMENITIES.some((a) => a.key === k)),
+    sofa_beds: fd.get("sofa_beds") === "" ? null : num("sofa_beds"),
+    cribs: fd.get("cribs") === "" ? null : num("cribs"),
+    parking_spots: fd.get("parking_spots") === "" ? null : num("parking_spots"),
     notes: String(fd.get("notes") || "") || null,
     ical_import_url: String(fd.get("ical_import_url") || "").trim() || null,
     early_cutoff_dow: Number(fd.get("early_cutoff_dow")),
