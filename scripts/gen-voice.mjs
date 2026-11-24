@@ -6,7 +6,7 @@ const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(B
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
 let keyIdx = 0;
 const VOICE = process.env.VOICE || "Algenib";
-const STYLE = "קרא בעברית רגילה, קריאה פשוטה וברורה וללא הטעמה במלעיל. בקול גברי מבוגר, מעט צרוד, חם ומזמין, כמו חסיד מבוגר שמקבל אורחים בכבוד. רק את המילה נַיְיחָא קרא בפתח ובהטעמה במלעיל (ההברה הראשונה מודגשת). את המשפט הראשון (עד המילה במירון) סיים בנימה יורדת ברורה של סוף משפט, ואחר כך המשך לאפשרויות בקצב אחיד. ";
+const STYLE = "קרא בעברית רגילה, קריאה פשוטה וברורה וללא הטעמה במלעיל. בקצב מהיר וזורם, קריאה רציפה וחלקה ללא עצירות ולא באמצע מילים. בקול גברי מבוגר, מעט צרוד, חם ומזמין, כמו חסיד מבוגר שמקבל אורחים בכבוד. את המילה נַיְיחָא קרא בנימה שיווקית, נלהבת וחמה, כמו פרסומת מזמינה, עם חיוך בקול, בפתח ובהטעמה במלעיל (ההברה הראשונה מודגשת). את המשפט הראשון (עד המילה במירון) סיים בנימה יורדת ברורה של סוף משפט, ואחר כך המשך לאפשרויות בקצב אחיד. ";
 
 import { readFileSync, existsSync } from "node:fs";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/clips.json", "utf8"));
@@ -49,7 +49,7 @@ for (const { voice, name, text } of jobs) {
   if (!b64) throw new Error("לא התקבל שמע");
   writeFileSync(`/tmp/${name.replace('/', '_')}.pcm`, Buffer.from(b64, "base64"));
   // PCM 16-bit mono 24kHz -> mp3 מנורמל
-  execFileSync("ffmpeg", ["-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", `/tmp/${name.replace('/', '_')}.pcm`, "-af", "loudnorm=I=-16", "-ar", "22050", "-b:a", "64k", `public/audio/${name}.mp3`], { stdio: "inherit" });
+  execFileSync("ffmpeg", ["-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", `/tmp/${name.replace('/', '_')}.pcm`, "-af", "atempo=1.12,loudnorm=I=-16", "-ar", "24000", "-b:a", "96k", `public/audio/${name}.mp3`], { stdio: "inherit" });
   console.log("נוצר", name);
   } catch (e) { failed++; console.log("נכשל", name, String(e).slice(0, 200)); }
 }
