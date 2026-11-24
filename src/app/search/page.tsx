@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { walkLabel } from "@/lib/geo";
 import ApartmentMap from "@/components/ApartmentMap";
 import Shell from "@/components/Shell";
 import { addDays, depositFor, nowInJerusalem, quote, type PricingRule } from "@/lib/pricing";
@@ -7,7 +8,7 @@ import { fmtDate, upcomingWeekends } from "@/lib/weekends";
 import { CONDITION_HE, EXTRAS, PERIOD_HE, detailsLine } from "@/lib/labels";
 import { normPhone } from "@/lib/pbx/types";
 
-type SP = { weekend?: string; stay?: string; from?: string; to?: string; guests?: string; budget?: string; condition?: string; floor?: string; showers?: string; toilets?: string; sqm?: string; has_yard?: string; has_trampoline?: string; has_swing?: string; has_parents_unit?: string; err?: string };
+type SP = { weekend?: string; stay?: string; from?: string; to?: string; guests?: string; budget?: string; condition?: string; floor?: string; showers?: string; toilets?: string; sqm?: string; has_yard?: string; has_trampoline?: string; has_swing?: string; has_parents_unit?: string; maxwalk?: string; sort?: string; err?: string };
 
 function range(sp: SP): { checkIn: string; checkOut: string } | null {
   if (sp.stay === "custom") return sp.from && sp.to ? { checkIn: sp.from, checkOut: sp.to } : null;
@@ -59,7 +60,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
   let skipped: { name: string; reason: string }[] = [];
   if (r && r.checkOut > r.checkIn) {
     const { data: apts } = await supabase.from("apartments")
-      .select("id, name, beds, rooms, features, has_yard, has_trampoline, has_swing, has_parents_unit, living_room_sqm, condition, floor, showers, toilets, address, distance_from_tomb_m, notes, early_cutoff_dow, early_cutoff_time, single_night_opens_dow, single_night_opens_time, owners(name), pricing_rules(*)")
+      .select("*, owners(name), pricing_rules(*)")
       .eq("active", true).gte("beds", guests || 1);
     const ids = (apts ?? []).map((a) => a.id);
     const [{ data: bks }, { data: blks }] = await Promise.all([
@@ -79,6 +80,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
       if (sp.floor !== undefined && sp.floor !== "" && a.floor !== Number(sp.floor)) continue;
       if (Number(sp.showers) > 0 && (a.showers ?? 0) < Number(sp.showers)) continue;
       if (Number(sp.toilets) > 0 && (a.toilets ?? 0) < Number(sp.toilets)) continue;
+      if (Number(sp.maxwalk) > 0 && (a.walk_minutes == null || a.walk_minutes > Number(sp.maxwalk))) continue;
       if (Number(sp.sqm) > 0 && (a.living_room_sqm ?? 0) < Number(sp.sqm)) continue;
       const q = quote(r.checkIn, r.checkOut, a, a.pricing_rules as PricingRule[], now);
       if (!q.ok) { skipped.push({ name: a.name, reason: q.reason }); continue; }
@@ -86,7 +88,12 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
       results.push({ apt: a, total: q.total, early: q.early, deposit: depositFor(q.total), period: PERIOD_HE[q.period] });
     }
     // התאמת מיטות הדוקה ראשונה, אחר כך מחיר
-    results.sort((x, y) => (x.apt.beds - guests) - (y.apt.beds - guests) || x.total - y.total);
+    if (sp.sort === "near") {
+      // הקרובות לציון קודם; דירות שטרם אותרו בסוף
+      results.sort((x, y) => (x.apt.walk_minutes ?? 9999) - (y.apt.walk_minutes ?? 9999) || x.total - y.total);
+    } else {
+      results.sort((x, y) => (x.apt.beds - guests) - (y.apt.beds - guests) || x.total - y.total);
+    }
   }
 
   return (
@@ -125,6 +132,14 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
           <div><label>מקלחות (לפחות)</label><input type="number" name="showers" min={0} defaultValue={sp.showers} /></div>
           <div><label>שירותים (לפחות)</label><input type="number" name="toilets" min={0} defaultValue={sp.toilets} /></div>
           <div><label>סלון (מ"ר לפחות)</label><input type="number" name="sqm" min={0} defaultValue={sp.sqm} /></div>
+          <div><label>עד כמה דקות הליכה מהציון</label><input type="number" name="maxwalk" min={1} defaultValue={sp.maxwalk} /></div>
+          <div>
+            <label>מיון</label>
+            <select name="sort" defaultValue={sp.sort ?? ""}>
+              <option value="">התאמת מיטות, אחר כך מחיר</option>
+              <option value="near">הכי קרוב לציון</option>
+            </select>
+          </div>
         </div>
         <div className="checks">
           {EXTRAS.map((e) => (
@@ -145,11 +160,11 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
                 <h2 style={{ margin: 0 }}>{apt.name}</h2>
                 <div><strong>{total.toLocaleString()} ₪</strong> <span className="muted">· {period} · {early ? "מחיר מוזל" : "מחיר רגיל"}</span></div>
               </div>
-              <p>{apt.beds} מיטות · {apt.rooms ?? "?"} חדרים{apt.distance_from_tomb_m != null && ` · ${apt.distance_from_tomb_m} מ' מהציון`} · {apt.owners?.name}</p>
+              <p>{apt.beds} מיטות · {apt.rooms ?? "?"} חדרים{apt.walk_minutes != null ? ` · ${walkLabel(apt.walk_minutes)}` : apt.distance_from_tomb_m != null && ` · ${apt.distance_from_tomb_m} מ' מהציון`} · {apt.owners?.name}</p>
               {detailsLine(apt) && <p className="muted">{detailsLine(apt)}</p>}
               {apt.features?.length > 0 && <p className="muted">{apt.features.join(" · ")}</p>}
               {apt.notes && <p className="muted">{apt.notes}</p>}
-              <ApartmentMap address={apt.address} name={apt.name} />
+              <ApartmentMap address={apt.address} name={apt.name} lat={apt.lat} lng={apt.lng} />
               <form action={closeBooking}>
                 <input type="hidden" name="apartment_id" value={apt.id} />
                 <input type="hidden" name="check_in" value={r.checkIn} />

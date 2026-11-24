@@ -7,9 +7,9 @@ export function mapQuery(address?: string | null, name?: string | null) {
   return base ? `${base}, מירון` : "מירון";
 }
 
-export default function ApartmentMap({ address, name, defaultOpen = false }: { address?: string | null; name?: string | null; defaultOpen?: boolean }) {
+export default function ApartmentMap({ address, name, lat, lng, defaultOpen = false }: { address?: string | null; name?: string | null; lat?: number | null; lng?: number | null; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
-  const q = encodeURIComponent(mapQuery(address, name));
+  const q = encodeURIComponent(lat != null && lng != null ? `${lat},${lng}` : mapQuery(address, name));
   return (
     <div className="map-box">
       <div className="row">

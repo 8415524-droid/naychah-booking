@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import Collapsible from "@/components/Collapsible";
+import { parseCoords, walkLabel, TZIYUN } from "@/lib/geo";
+import { locateApartment } from "@/lib/locate";
 import ApartmentMap from "@/components/ApartmentMap";
 import Shell from "@/components/Shell";
 import ApartmentFields, { parseApartment } from "@/components/ApartmentFields";
@@ -17,6 +19,31 @@ async function saveApartment(fd: FormData) {
   if (error) redirect(`/apartments/${id}?err=` + encodeURIComponent(error.message.includes("short_code") ? "מספר הדירה הקצר כבר בשימוש" : "שגיאה בשמירה"));
   revalidatePath(`/apartments/${id}`);
   redirect(`/apartments/${id}?saved=1`);
+}
+
+async function locate(fd: FormData) {
+  "use server";
+  const { supabase } = await getSession(["admin", "owner"]);
+  const id = String(fd.get("id"));
+  const { data: apt } = await supabase.from("apartments").select("id, address, lat, lng").eq("id", id).single();
+  if (!apt) redirect(`/apartments/${id}?err=` + encodeURIComponent("הדירה לא נמצאה"));
+  const r = await locateApartment(supabase, apt!, { fromAddress: fd.get("mode") === "address" });
+  revalidatePath(`/apartments/${id}`);
+  redirect(`/apartments/${id}?${r.ok ? "saved=1" : "err=" + encodeURIComponent(r.reason)}`);
+}
+
+async function saveCoords(fd: FormData) {
+  "use server";
+  const { supabase } = await getSession(["admin", "owner"]);
+  const id = String(fd.get("id"));
+  const c = parseCoords(String(fd.get("coords") || ""));
+  if (!c) redirect(`/apartments/${id}?err=` + encodeURIComponent("לא הצלחתי לקרוא קואורדינטות. הדבק למשל 32.9812, 35.4411"));
+  const { error } = await supabase.from("apartments").update({ lat: c!.lat, lng: c!.lng }).eq("id", id);
+  if (error) redirect(`/apartments/${id}?err=` + encodeURIComponent("שגיאה בשמירה"));
+  const { data: apt } = await supabase.from("apartments").select("id, address, lat, lng").eq("id", id).single();
+  const r = apt ? await locateApartment(supabase, apt) : ({ ok: false, reason: "הדירה לא נמצאה" } as const);
+  revalidatePath(`/apartments/${id}`);
+  redirect(`/apartments/${id}?${r.ok ? "saved=1" : "err=" + encodeURIComponent(r.reason)}`);
 }
 
 async function addRule(fd: FormData) {
@@ -61,7 +88,28 @@ export default async function Apartment({ params, searchParams }: {
         <Link className="btn" href={`/apartments/${id}/calendar`}>יומן וסנכרון</Link>
       </div>
 
-      <Collapsible title="מפה" summary={apt.address ?? "מירון"}><ApartmentMap address={apt.address} name={apt.name} defaultOpen /></Collapsible>
+      <Collapsible title="מפה" summary={apt.address ?? "מירון"}><ApartmentMap address={apt.address} name={apt.name} lat={apt.lat} lng={apt.lng} defaultOpen /></Collapsible>
+
+      <Collapsible title="מיקום והליכה לציון" summary={apt.walk_minutes != null ? walkLabel(apt.walk_minutes) : "טרם אותרה"}>
+        {apt.walk_minutes != null
+          ? <p><strong>{walkLabel(apt.walk_minutes)}</strong> <span className="muted">· כ-{apt.walk_meters} מטר · קואורדינטות {apt.lat?.toFixed(5)}, {apt.lng?.toFixed(5)}</span></p>
+          : <p className="muted">עדיין לא חושב זמן הליכה לדירה הזו.</p>}
+        {canEdit && (
+          <>
+            <form action={locate}>
+              <input type="hidden" name="id" value={id} /><input type="hidden" name="mode" value="address" />
+              <button className="btn">אתר לפי הכתובת וחשב הליכה לציון</button>
+            </form>
+            <form action={saveCoords} style={{ marginTop: 12 }}>
+              <input type="hidden" name="id" value={id} />
+              <label>או הדבק מיקום מדויק מגוגל מפות (קליק ימני על הדירה → העתק קואורדינטות, או קישור)</label>
+              <input name="coords" placeholder="32.9812, 35.4411" dir="ltr" />
+              <button className="btn" style={{ marginTop: 8 }}>שמור מיקום וחשב</button>
+            </form>
+            <p className="muted">הציון: {TZIYUN.lat}, {TZIYUN.lng} (קבר רשב"י, לפי OpenStreetMap). הכתובת לא תמיד מדויקת במירון, ולכן מיקום שהודבק ידנית עדיף.</p>
+          </>
+        )}
+      </Collapsible>
 
       {canEdit ? (
         <Collapsible title="פרטי הדירה" summary={`${apt.beds} מיטות · ${apt.rooms ?? "?"} חדרים`}>
