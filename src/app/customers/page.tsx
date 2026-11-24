@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
+import Collapsible from "@/components/Collapsible";
+import DataTable from "@/components/DataTable";
 import Shell from "@/components/Shell";
 
 export default async function Customers({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
@@ -12,17 +14,23 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   return (
     <Shell role={role} name={name}>
       <h1>לקוחות</h1>
-      <form className="card" method="get">
-        <label>חיפוש לפי שם או טלפון</label>
-        <input name="q" defaultValue={q} />
-        <button className="primary">חיפוש</button>
-      </form>
+      <Collapsible title="חיפוש לקוח" summary={q ? `מסונן: ${q}` : "לפי שם או טלפון"}>
+        <form method="get">
+          <label>חיפוש לפי שם או טלפון</label>
+          <input name="q" defaultValue={q} />
+          <button className="primary">חיפוש</button>
+        </form>
+      </Collapsible>
       <div className="card">
-        <table>
-          <thead><tr><th>שם</th><th>טלפון</th><th></th></tr></thead>
-          <tbody>{data?.map((c) => <tr key={c.id}><td>{c.full_name}</td><td>{c.phone}</td><td><Link href={`/customers/${c.id}`}>כרטיס לקוח</Link></td></tr>)}</tbody>
-        </table>
-        {!data?.length && <p className="muted">לא נמצאו לקוחות.</p>}
+        <DataTable
+          filename="customers"
+          columns={[{ key: "name", label: "שם" }, { key: "phone", label: "טלפון" }, { key: "open", label: "" }]}
+          rows={(data ?? []).map((c) => ({
+            id: c.id,
+            cells: { name: { text: c.full_name ?? "" }, phone: { text: c.phone ?? "" }, open: { text: "", node: <Link href={`/customers/${c.id}`}>כרטיס לקוח</Link> } },
+          }))}
+          empty="לא נמצאו לקוחות."
+        />
       </div>
     </Shell>
   );

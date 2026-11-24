@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
+import DataTable from "@/components/DataTable";
 import Shell from "@/components/Shell";
 
 export default async function Apartments() {
@@ -12,19 +13,25 @@ export default async function Apartments() {
         {role !== "agent" && <Link className="btn" href="/apartments/new">הוספת דירה</Link>}
       </div>
       <div className="card">
-        <table>
-          <thead><tr><th>#</th><th>דירה</th><th>בעלים</th><th>מיטות</th><th>חדרים</th><th></th></tr></thead>
-          <tbody>
-            {apts?.map((a: any) => (
-              <tr key={a.id}>
-                <td>{a.short_code}</td><td>{a.name}{!a.active && " (לא פעילה)"}</td>
-                <td>{a.owners?.name}</td><td>{a.beds}</td><td>{a.rooms}</td>
-                <td><Link href={`/apartments/${a.id}`}>{role === "agent" ? "צפייה" : "עריכה"}</Link></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!apts?.length && <p className="muted">עדיין אין דירות.</p>}
+        <DataTable
+          filename="apartments"
+          columns={[
+            { key: "code", label: "#" }, { key: "name", label: "דירה" }, { key: "owner", label: "בעלים", filter: true },
+            { key: "beds", label: "מיטות", filter: true }, { key: "rooms", label: "חדרים", filter: true }, { key: "open", label: "" },
+          ]}
+          rows={(apts ?? []).map((a: any) => ({
+            id: a.id,
+            cells: {
+              code: { text: String(a.short_code ?? "") },
+              name: { text: `${a.name}${!a.active ? " (לא פעילה)" : ""}` },
+              owner: { text: a.owners?.name ?? "" },
+              beds: { text: String(a.beds ?? "") },
+              rooms: { text: String(a.rooms ?? "") },
+              open: { text: "", node: <Link href={`/apartments/${a.id}`}>{role === "agent" ? "צפייה" : "עריכה"}</Link> },
+            },
+          }))}
+          empty="עדיין אין דירות."
+        />
       </div>
     </Shell>
   );

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
+import Collapsible from "@/components/Collapsible";
 import ApartmentMap from "@/components/ApartmentMap";
 import Shell from "@/components/Shell";
 import ApartmentFields, { parseApartment } from "@/components/ApartmentFields";
@@ -60,10 +61,11 @@ export default async function Apartment({ params, searchParams }: {
         <Link className="btn" href={`/apartments/${id}/calendar`}>יומן וסנכרון</Link>
       </div>
 
-      <div className="card"><ApartmentMap address={apt.address} name={apt.name} defaultOpen /></div>
+      <Collapsible title="מפה" summary={apt.address ?? "מירון"}><ApartmentMap address={apt.address} name={apt.name} defaultOpen /></Collapsible>
 
       {canEdit ? (
-        <form className="card" action={saveApartment}>
+        <Collapsible title="פרטי הדירה" summary={`${apt.beds} מיטות · ${apt.rooms ?? "?"} חדרים`}>
+        <form action={saveApartment}>
           <input type="hidden" name="id" value={id} />
           <ApartmentFields apt={apt} />
           <label className="checks"><input type="checkbox" name="active" defaultChecked={apt.active} /> דירה פעילה (מופיעה בחיפוש)</label>
@@ -71,18 +73,18 @@ export default async function Apartment({ params, searchParams }: {
           {saved && <p className="ok">נשמר</p>}
           <button className="primary">שמירת פרטי הדירה</button>
         </form>
+        </Collapsible>
       ) : (
-        <div className="card">
+        <Collapsible title="פרטי הדירה" summary={`${apt.beds} מיטות`}>
           <p>{apt.beds} מיטות · {apt.rooms ?? "?"} חדרים · {apt.address}</p>
           <p>{apt.features?.join(", ")}</p>
           <p>{detailsLine(apt)}</p>
           <p>{apt.onsite_contact}</p>
           <p>{apt.notes}</p>
-        </div>
+        </Collapsible>
       )}
 
-      <div className="card">
-        <h2>מחירים</h2>
+      <Collapsible title="מחירים" summary={`${rules?.length ?? 0} כללי מחיר`}>
         <p className="muted">מחיר מוזל חל כשסוגרים עד שעת הסף של הדירה. מחיר רגיל חל אחרי כן (למשל ביום שישי). לתקופה בלי הבדל, השאר את המחיר הרגיל ריק.</p>
         <table>
           <thead><tr><th>תקופה</th><th>תאריכים</th><th>מחיר מוזל</th><th>מחיר רגיל</th><th></th></tr></thead>
@@ -117,7 +119,7 @@ export default async function Apartment({ params, searchParams }: {
             <button className="primary">הוספת מחיר</button>
           </form>
         )}
-      </div>
+      </Collapsible>
     </Shell>
   );
 }
