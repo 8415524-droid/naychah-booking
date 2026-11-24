@@ -2,11 +2,11 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 
-const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4].slice(Number(process.env.SKIP_KEYS) || 0, Number(process.env.MAX_KEYS) || undefined).filter(Boolean); // שני מפתחות מחלקים את העומס על מגבלת הקצב
+const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4, process.env.GEMINI_API_KEY_5, process.env.GEMINI_API_KEY_6, process.env.GEMINI_API_KEY_7, process.env.GEMINI_API_KEY_8].slice(Number(process.env.SKIP_KEYS) || 0, Number(process.env.MAX_KEYS) || undefined).filter(Boolean); // שני מפתחות מחלקים את העומס על מגבלת הקצב
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
 let keyIdx = 0;
 const VOICE = process.env.VOICE || "Algenib";
-const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): נימה נלהבת, שיווקית וחמה כמו מוכר כריזמטי בשוק אבל מכובד, קול גברי מבוגר מעט צרוד, קצב מהיר ורציף ללא עצירות. המילה נַיְיחַא בהטעמה במלעיל (ההברה הראשונה). ";
+const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): קול גברי מבוגר, חם ובטוח, בטון גבוה יותר ונמרץ ומאיר פנים, אנרגטי ומזמין. הקראה אחת רציפה וזורמת לגמרי, בלי שום הפסקה באמצע. הדיבור אנושי וטבעי, לא רובוטי: כל פעם שהמילה הַקִּישׁוּ חוזרת היא נשמעת קצת אחרת (גובה, הדגשה וקצב משתנים מעט, כמו אדם אמיתי שמדבר), ובכל מספר ההטעמה שונה במקצת. הַקִּישׁוּ בעברית תקנית עם דגש באות ק. המילה נַיְיחַא בהטעמה במלעיל (ההברה הראשונה, כמו NAY-cha). ";
 const READ_ONLY = "\n\nהקרא עכשיו את הטקסט הבא בלבד, מילה במילה, בלי להוסיף שום מילה ובלי לשנות או להשמיט, וסיים מיד בסופו:\n";
 
 import { readFileSync, existsSync } from "node:fs";
