@@ -61,6 +61,15 @@ create table if not exists apartments (
   onsite_contact text,
   notes text,
   photos text[] not null default '{}',
+  has_yard boolean not null default false,
+  has_trampoline boolean not null default false,
+  has_swing boolean not null default false,
+  has_parents_unit boolean not null default false,
+  living_room_sqm int check (living_room_sqm is null or living_room_sqm > 0),
+  condition text check (condition is null or condition in ('new','medium','luxurious','weak','reasonable')),
+  floor int,                          -- 0 = קרקע
+  showers int check (showers is null or showers >= 0),
+  toilets int check (toilets is null or toilets >= 0),
   -- חוקי זמן, כל בעל דירה קובע לעצמו וניתן לשינוי בכל עת
   early_cutoff_dow smallint not null default 4 check (early_cutoff_dow between 0 and 6), -- 4 = חמישי
   early_cutoff_time time not null default '12:00',

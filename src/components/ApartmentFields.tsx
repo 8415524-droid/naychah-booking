@@ -1,4 +1,4 @@
-import { DOW_HE, FEATURES } from "@/lib/labels";
+import { CONDITION_HE, DOW_HE, EXTRAS, FEATURES } from "@/lib/labels";
 
 type Apt = Record<string, any> | null;
 
@@ -20,6 +20,25 @@ export default function ApartmentFields({ apt }: { apt: Apt }) {
         {FEATURES.map((f) => (
           <label key={f}><input type="checkbox" name="features" value={f} defaultChecked={feats.includes(f)} /> {f}</label>
         ))}
+      </div>
+      <h3>פרטי הדירה</h3>
+      <div className="checks">
+        {EXTRAS.map((e) => (
+          <label key={e.key}><input type="checkbox" name={e.key} defaultChecked={!!apt?.[e.key]} /> {e.label}</label>
+        ))}
+      </div>
+      <div className="grid2">
+        <div><label>גודל סלון (מ"ר)</label><input name="living_room_sqm" type="number" min={1} defaultValue={apt?.living_room_sqm ?? ""} /></div>
+        <div>
+          <label>מצב הדירה</label>
+          <select name="condition" defaultValue={apt?.condition ?? ""}>
+            <option value="">לא צוין</option>
+            {Object.entries(CONDITION_HE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+        <div><label>קומה (0 = קרקע)</label><input name="floor" type="number" defaultValue={apt?.floor ?? ""} /></div>
+        <div><label>מספר מקלחות</label><input name="showers" type="number" min={0} defaultValue={apt?.showers ?? ""} /></div>
+        <div><label>מספר שירותים</label><input name="toilets" type="number" min={0} defaultValue={apt?.toilets ?? ""} /></div>
       </div>
       <label>הערות</label>
       <textarea name="notes" rows={3} defaultValue={apt?.notes ?? ""} />
@@ -56,6 +75,15 @@ export function parseApartment(fd: FormData) {
     distance_from_tomb_m: num("distance_from_tomb_m"),
     short_code: num("short_code"),
     onsite_contact: String(fd.get("onsite_contact") || "") || null,
+    has_yard: fd.get("has_yard") === "on",
+    has_trampoline: fd.get("has_trampoline") === "on",
+    has_swing: fd.get("has_swing") === "on",
+    has_parents_unit: fd.get("has_parents_unit") === "on",
+    living_room_sqm: num("living_room_sqm"),
+    condition: String(fd.get("condition") || "") || null,
+    floor: fd.get("floor") === "" || fd.get("floor") == null ? null : Number(fd.get("floor")),
+    showers: num("showers"),
+    toilets: num("toilets"),
     features: fd.getAll("features").map(String),
     notes: String(fd.get("notes") || "") || null,
     ical_import_url: String(fd.get("ical_import_url") || "").trim() || null,

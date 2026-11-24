@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import Shell from "@/components/Shell";
 import ApartmentFields, { parseApartment } from "@/components/ApartmentFields";
-import { PERIOD_HE } from "@/lib/labels";
+import { PERIOD_HE, detailsLine } from "@/lib/labels";
 
 async function saveApartment(fd: FormData) {
   "use server";
@@ -72,6 +72,7 @@ export default async function Apartment({ params, searchParams }: {
         <div className="card">
           <p>{apt.beds} מיטות · {apt.rooms ?? "?"} חדרים · {apt.address}</p>
           <p>{apt.features?.join(", ")}</p>
+          <p>{detailsLine(apt)}</p>
           <p>{apt.onsite_contact}</p>
           <p>{apt.notes}</p>
         </div>

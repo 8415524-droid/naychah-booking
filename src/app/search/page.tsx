@@ -3,10 +3,10 @@ import { getSession } from "@/lib/auth";
 import Shell from "@/components/Shell";
 import { addDays, depositFor, nowInJerusalem, quote, type PricingRule } from "@/lib/pricing";
 import { fmtDate, upcomingWeekends } from "@/lib/weekends";
-import { PERIOD_HE } from "@/lib/labels";
+import { CONDITION_HE, EXTRAS, PERIOD_HE, detailsLine } from "@/lib/labels";
 import { normPhone } from "@/lib/pbx/types";
 
-type SP = { weekend?: string; stay?: string; from?: string; to?: string; guests?: string; budget?: string; err?: string };
+type SP = { weekend?: string; stay?: string; from?: string; to?: string; guests?: string; budget?: string; condition?: string; floor?: string; showers?: string; toilets?: string; sqm?: string; has_yard?: string; has_trampoline?: string; has_swing?: string; has_parents_unit?: string; err?: string };
 
 function range(sp: SP): { checkIn: string; checkOut: string } | null {
   if (sp.stay === "custom") return sp.from && sp.to ? { checkIn: sp.from, checkOut: sp.to } : null;
@@ -58,7 +58,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
   let skipped: { name: string; reason: string }[] = [];
   if (r && r.checkOut > r.checkIn) {
     const { data: apts } = await supabase.from("apartments")
-      .select("id, name, beds, rooms, features, address, distance_from_tomb_m, notes, early_cutoff_dow, early_cutoff_time, single_night_opens_dow, single_night_opens_time, owners(name), pricing_rules(*)")
+      .select("id, name, beds, rooms, features, has_yard, has_trampoline, has_swing, has_parents_unit, living_room_sqm, condition, floor, showers, toilets, address, distance_from_tomb_m, notes, early_cutoff_dow, early_cutoff_time, single_night_opens_dow, single_night_opens_time, owners(name), pricing_rules(*)")
       .eq("active", true).gte("beds", guests || 1);
     const ids = (apts ?? []).map((a) => a.id);
     const [{ data: bks }, { data: blks }] = await Promise.all([
@@ -73,6 +73,12 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
     ]);
     for (const a of apts ?? []) {
       if (busy.has(a.id)) continue;
+      if (EXTRAS.some((e) => (sp as any)[e.key] && !(a as any)[e.key])) continue;
+      if (sp.condition && a.condition !== sp.condition) continue;
+      if (sp.floor !== undefined && sp.floor !== "" && a.floor !== Number(sp.floor)) continue;
+      if (Number(sp.showers) > 0 && (a.showers ?? 0) < Number(sp.showers)) continue;
+      if (Number(sp.toilets) > 0 && (a.toilets ?? 0) < Number(sp.toilets)) continue;
+      if (Number(sp.sqm) > 0 && (a.living_room_sqm ?? 0) < Number(sp.sqm)) continue;
       const q = quote(r.checkIn, r.checkOut, a, a.pricing_rules as PricingRule[], now);
       if (!q.ok) { skipped.push({ name: a.name, reason: q.reason }); continue; }
       if (budget && q.total > budget) continue;
@@ -107,6 +113,22 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
           <div><label>יציאה</label><input type="date" name="to" defaultValue={sp.to} /></div>
           <div><label>מספר אנשים / מיטות</label><input type="number" name="guests" min={1} defaultValue={sp.guests} /></div>
           <div><label>תקציב מקסימלי (₪)</label><input type="number" name="budget" min={0} defaultValue={sp.budget} /></div>
+          <div>
+            <label>מצב הדירה</label>
+            <select name="condition" defaultValue={sp.condition ?? ""}>
+              <option value="">הכול</option>
+              {Object.entries(CONDITION_HE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <div><label>קומה (0 = קרקע)</label><input type="number" name="floor" defaultValue={sp.floor} /></div>
+          <div><label>מקלחות (לפחות)</label><input type="number" name="showers" min={0} defaultValue={sp.showers} /></div>
+          <div><label>שירותים (לפחות)</label><input type="number" name="toilets" min={0} defaultValue={sp.toilets} /></div>
+          <div><label>סלון (מ"ר לפחות)</label><input type="number" name="sqm" min={0} defaultValue={sp.sqm} /></div>
+        </div>
+        <div className="checks">
+          {EXTRAS.map((e) => (
+            <label key={e.key}><input type="checkbox" name={e.key} value="1" defaultChecked={!!(sp as any)[e.key]} /> {e.label}</label>
+          ))}
         </div>
         <button className="primary">חיפוש</button>
       </form>
@@ -123,6 +145,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
                 <div><strong>{total.toLocaleString()} ₪</strong> <span className="muted">· {period} · {early ? "מחיר מוזל" : "מחיר רגיל"}</span></div>
               </div>
               <p>{apt.beds} מיטות · {apt.rooms ?? "?"} חדרים{apt.distance_from_tomb_m != null && ` · ${apt.distance_from_tomb_m} מ' מהציון`} · {apt.owners?.name}</p>
+              {detailsLine(apt) && <p className="muted">{detailsLine(apt)}</p>}
               {apt.features?.length > 0 && <p className="muted">{apt.features.join(" · ")}</p>}
               {apt.notes && <p className="muted">{apt.notes}</p>}
               <form action={closeBooking}>
