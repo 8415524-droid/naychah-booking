@@ -16,6 +16,8 @@ const first = ALL.find((c) => c.key === "welcome");
 const jobs = SAMPLES.length
   ? SAMPLES.map((v) => ({ voice: v, name: `samples/welcome-${v}`, text: first.spoken ?? first.text }))
   : ALL.map((c) => ({ voice: VOICE, name: c.key === "welcome" ? "clips/welcome-voice" : `clips/${c.key}`, text: c.spoken ?? c.text }));
+const ONLY = (process.env.ONLY || "").split(",").filter(Boolean); // ONLY=welcome מפיק רק את הקליפים הנבחרים
+if (ONLY.length) for (let i = jobs.length - 1; i >= 0; i--) if (!ONLY.some((k) => jobs[i].name === `clips/${k}` || jobs[i].name === `clips/${k}-voice`)) jobs.splice(i, 1);
 mkdirSync("public/audio/clips", { recursive: true });
 mkdirSync("public/audio/samples", { recursive: true });
 let failed = 0;

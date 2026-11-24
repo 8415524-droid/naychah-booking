@@ -6,6 +6,10 @@ on:
         description: 'רשימת קולות לדוגמה, מופרדת בפסיקים (ריק = קובץ הפתיח הסופי)'
         required: false
         default: ''
+      only:
+        description: 'מפתחות קליפים בלבד, מופרדים בפסיקים (למשל welcome). ריק = הכול'
+        required: false
+        default: ''
 permissions:
   contents: write
 jobs:
@@ -21,6 +25,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
           VOICES: ${{ inputs.voices }}
+          ONLY: ${{ inputs.only }}
       - name: commit audio
         if: always()
         run: |
