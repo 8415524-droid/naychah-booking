@@ -1,5 +1,17 @@
 // תור המתנה משלנו: מחכים לנציג דקה בכל סבב (מוזיקה), ובסוף כל דקה, ובין הסבבים אומרים "הנך מספר X" ומציעים להשאיר הודעה.
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { menu, pbxFiles, say, type PbxModule, type PbxParams } from "./types";
+
+const QUEUE_CLIP_BASE = process.env.PBX_QUEUE_AUDIO_BASE ?? "https://75-119-140-120.sslip.io/audio/queue";
+const QUEUE_CLIP_VER = "v1"; // להעלות כשמחליפים קובץ: טכנוליין שומרת במטמון לפי שם הקובץ
+/** הקראה מוקלטת (מעורבבת עם המוזיקה) של "הנך מספר X" + האפשרויות. null = אין קובץ (נופלים להקראה ממוכנת). */
+export function queuePositionClip(pos: number): { fileLink: string; fileName: string } | null {
+  if (!Number.isInteger(pos) || pos < 1 || pos > 10) return null;
+  const key = `queue_pos_${pos}`;
+  if (!existsSync(join(process.cwd(), "public", "audio", "queue", `${key}.mp3`))) return null;
+  return { fileLink: `${QUEUE_CLIP_BASE}/${key}.mp3`, fileName: `${key}_${QUEUE_CLIP_VER}` };
+}
 
 export const QUEUE_ROUND_SEC = 60;
 export const QUEUE_MAX_ROUNDS = 8;
@@ -40,6 +52,8 @@ export async function afterRound(q: PbxParams, kind: string, phones: string[], d
   if (choice !== undefined) return [queueRound(n + 1, phones)]; // בחר להמשיך להמתין (או לא הקיש)
   const callId = q.PBXcallId ?? "";
   const pos = deps && callId ? await deps.position(callId, kind) : 1;
+  const clip = queuePositionClip(pos);
+  if (clip) return [{ type: "simpleMenu", name: `waitq${n}`, files: [clip], enabledKeys: "4", times: 1, timeout: 3, setMusic: "yes" }];
   return [say(`הנך מספר ${pos} בתור.`), menu(`waitq${n}`, "להשארת הודעה הקישו 4. להמשך המתנה אל תקישו דבר.", "4")].map((m) =>
     m.type === "simpleMenu" ? { ...m, times: 1, timeout: 3, setMusic: "yes" as const } : m);
 }
