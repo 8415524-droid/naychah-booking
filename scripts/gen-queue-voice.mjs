@@ -1,9 +1,9 @@
 // הקראות תור ההמתנה (דיבור בלבד, בלי מוזיקה) בקול Algenib. הערבוב עם המוזיקה: scripts/mix-queue.sh
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
-const KEY = process.env.GEMINI_API_KEY;
-if (!KEY) throw new Error("חסר GEMINI_API_KEY");
-const STYLE = "קרא בעברית רגילה, קריאה פשוטה וטבעית, בלי הגייה חסידית ובלי הטעמה מיוחדת. בקול גברי חם, רגוע ומכבד, בקצב נעים וברור. בין המשפטים הפסקה קצרה. ";
+const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean);
+if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
+const STYLE = "קרא בעברית רגילה, קריאה פשוטה וברורה וללא הטעמה במלעיל. בקול גברי מבוגר, מעט צרוד, חם ומזמין, כמו חסיד מבוגר שמקבל אורחים בכבוד. בין המשפטים הפסקה קצרה. ";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/queue-clips.json", "utf8"));
 mkdirSync("public/audio/queue-speech", { recursive: true });
 let failed = 0;
@@ -14,7 +14,7 @@ for (const c of ALL) {
     let res;
     for (let a = 0; a < 5; a++) {
       res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent", {
-        method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": KEY },
+        method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": KEYS[a % KEYS.length] },
         body: JSON.stringify({ contents: [{ parts: [{ text: STYLE + (c.spoken ?? c.text) }] }],
           generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Algenib" } } } } }),
       });
