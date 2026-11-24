@@ -31,3 +31,10 @@ describe("ical", () => {
     expect(parseIcal(feed)).toEqual([{ from: "2026-12-03", to: "2026-12-05" }]);
   });
 });
+
+import { mergeRanges } from "./ical-sync";
+describe("mergeRanges", () => {
+  it("מאחד חפיפות וטווחים סמוכים", () => {
+    expect(mergeRanges([{ from: "2026-12-05", to: "2026-12-08" }, { from: "2026-12-01", to: "2026-12-05" }, { from: "2026-12-07", to: "2026-12-10" }, { from: "2026-12-20", to: "2026-12-21" }])).toEqual([{ from: "2026-12-01", to: "2026-12-10" }, { from: "2026-12-20", to: "2026-12-21" }]);
+  });
+});
