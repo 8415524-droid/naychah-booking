@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_3, process.env.GEMINI_API_KEY_4].slice(Number(process.env.SKIP_KEYS) || 0).filter(Boolean); // SKIP_KEYS=3 משאיר רק את מפתח 4
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
-const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): נימה נלהבת, שיווקית וחמה כמו מוכר כריזמטי בשוק אבל מכובד, קול גברי מבוגר מעט צרוד, קצב רציף ללא עצירות. ";
+const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): קול גברי בוגר, חם, בטוח בעצמו ורגוע, קצב בינוני נינוח, עברית רגילה בלי הטעמה במלעיל. הפסקה ברורה בין המשפטים ובין האפשרויות, כמו שירות לקוחות אדיב ומכבד. ";
 const READ_ONLY = "\n\nהקרא עכשיו את הטקסט הבא בלבד, מילה במילה, בלי להוסיף שום מילה ובלי לשנות או להשמיט, וסיים מיד בסופו:\n";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/queue-clips.json", "utf8"));
 mkdirSync("public/audio/queue-speech", { recursive: true });
