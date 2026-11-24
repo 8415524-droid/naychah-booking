@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { busyNightCount, evaluate, rank, type SearchApt, type SearchQuery } from "./search-engine";
+import { busyNightCount, evaluate, explain, findSplits, rank, type SearchApt, type SearchQuery } from "./search-engine";
 
-const base: SearchQuery = { guests: 0, rooms: 0, budget: 0, text: "", maxDistM: 0, showers: 0, toilets: 0, sqm: 0, sofaBeds: 0, cribs: 0, parking: 0, condition: "", floor: null, flags: [] };
+const base: SearchQuery = { guests: 0, rooms: 0, budget: 0, text: "", maxDistM: 0, showers: 0, toilets: 0, sqm: 0, sofaBeds: 0, cribs: 0, parking: 0, condition: "", floor: null, flags: [], must: [] };
 const apt = (o: Partial<SearchApt> = {}): SearchApt => ({ name: "דירה א", beds: 8, rooms: 4, ...o });
 const ctx = { nights: 2, busyNights: 0, total: 1500 };
 
@@ -59,6 +59,45 @@ describe("evaluate", () => {
   });
 });
 
+describe("דרישות חובה", () => {
+  it("פער בדרישת חובה נשקל פי 3 ונשמט מכמעט מתאימות", () => {
+    const q = { ...base, flags: ["safe_room"] };
+    const a = apt({ amenities: ["ac"] });
+    expect(evaluate(a, q, ctx).score).toBe(1);
+    const m = evaluate(a, { ...q, must: ["safe_room"] }, ctx);
+    expect(m.score).toBe(3);
+    expect(m.gaps[0].must).toBe(true);
+  });
+  it("שדה שלא הוזן לא נחשב חובה", () => {
+    expect(evaluate(apt(), { ...base, flags: ["safe_room"], must: ["safe_room"] }, ctx).score).toBe(0.5);
+  });
+});
+
+describe("explain", () => {
+  it("שורה להקראה עם הפער", () => {
+    const e = evaluate(apt({ beds: 6, distance_from_tomb_m: 200 }), { ...base, guests: 8 }, ctx);
+    const t = explain(apt({ beds: 6, rooms: 3, distance_from_tomb_m: 200 }), e);
+    expect(t).toContain("6 מיטות, 3 חדרים, 200 מטר מהציון");
+    expect(t).toContain("חסרות 2 מיטות");
+  });
+});
+
+describe("findSplits", () => {
+  const row = (name: string, beds: number, d: number | null, total = 1000) => {
+    const a = apt({ name, beds, distance_from_tomb_m: d });
+    return { apt: a, total, ev: evaluate(a, base, { nights: 2, busyNights: 0, total }) };
+  };
+  it("שתי דירות קרובות שיחד מספיקות", () => {
+    const s = findSplits([row("א", 5, 100), row("ב", 4, 250), row("ג", 4, 2000), row("ד", 12, 100)], 9);
+    expect(s).toHaveLength(1);
+    expect(s[0].a.apt.name).toBe("א");
+    expect(s[0].total).toBe(2000);
+  });
+  it("בלי מרחק ידוע לא מציע", () => {
+    expect(findSplits([row("א", 5, null), row("ב", 4, 100)], 9)).toHaveLength(0);
+  });
+});
+
 describe("busyNightCount", () => {
   it("סופר לילות תפוסים בלי כפילות", () => {
     const r = [{ from: "2026-12-03", to: "2026-12-04" }, { from: "2026-12-03", to: "2026-12-04" }];
@@ -78,6 +117,10 @@ describe("rank", () => {
     const { exact, near } = rank(rows, 8, "best");
     expect(exact.map((r) => r.apt.name)).toEqual(["מדויקת", "גדולה"]);
     expect(near.map((r) => r.apt.name)).toEqual(["קרובה"]);
+  });
+  it("בוסט (לקוח חוזר) שובר שוויון", () => {
+    const rows = [mk("א", { id: "1" }, base, 1000), mk("ב", { id: "2" }, base, 2000)];
+    expect(rank(rows, 0, "best", new Map([["2", -0.5]])).exact[0].apt.name).toBe("ב");
   });
   it("מיון לפי מחיר ולפי מרחק", () => {
     const rows = [mk("א", { distance_from_tomb_m: 500 }, base, 1000), mk("ב", { distance_from_tomb_m: 100 }, base, 2000)];

@@ -355,3 +355,22 @@ create policy set_admin on settings for all using (my_role() = 'admin') with che
 -- ---------- הרשאות הפעלה לפונקציות ----------
 revoke all on function create_hold, record_payment, cancel_booking, expire_holds from public, anon;
 grant execute on function create_hold, record_payment, cancel_booking to authenticated;
+
+-- רשימת המתנה לחיפוש (ראו updates/008-waitlist.sql)
+create table if not exists search_waitlist (
+  id uuid primary key default gen_random_uuid(),
+  customer_name text not null,
+  customer_phone text not null,
+  params text not null,
+  check_in date not null,
+  check_out date not null check (check_out > check_in),
+  guests int,
+  status text not null default 'open' check (status in ('open','closed')),
+  created_by uuid default auth.uid(),
+  created_at timestamptz not null default now()
+);
+create index if not exists search_waitlist_open on search_waitlist(status, check_in);
+alter table search_waitlist enable row level security;
+drop policy if exists waitlist_staff on search_waitlist;
+create policy waitlist_staff on search_waitlist for all
+  using (my_role() in ('admin','agent')) with check (my_role() in ('admin','agent'));

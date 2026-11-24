@@ -2,34 +2,14 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import ApartmentMap from "@/components/ApartmentMap";
 import Shell from "@/components/Shell";
-import { addDays, depositFor, nightsBetween, nowInJerusalem, quote, type PricingRule } from "@/lib/pricing";
+import { depositFor, nowInJerusalem, quote, type PricingRule } from "@/lib/pricing";
 import { fmtDate, upcomingWeekends } from "@/lib/weekends";
 import { CONDITION_HE, PERIOD_HE, detailsLine } from "@/lib/labels";
-import { AMENITIES, COLUMN_FLAGS, busyNightCount, evaluate, rank, type Evaluation, type SearchQuery, type SortMode } from "@/lib/search-engine";
+import { flagKey, queryFrom, runSearch, stayRange, type Row, type SearchOutcome } from "@/lib/search-run";
+import { AMENITIES, COLUMN_FLAGS, explain, type Evaluation, type SortMode } from "@/lib/search-engine";
 import { normPhone } from "@/lib/pbx/types";
 
 type SP = Record<string, string | undefined>;
-
-function range(sp: SP): { checkIn: string; checkOut: string } | null {
-  if (sp.stay === "custom") return sp.from && sp.to ? { checkIn: sp.from, checkOut: sp.to } : null;
-  if (!sp.weekend) return null;
-  const sat = sp.weekend;
-  if (sp.stay === "fri_sat") return { checkIn: addDays(sat, -1), checkOut: sat };
-  if (sp.stay === "thu_night") return { checkIn: addDays(sat, -2), checkOut: addDays(sat, -1) };
-  return { checkIn: addDays(sat, -2), checkOut: sat };
-}
-
-const flagKey = (key: string) => (COLUMN_FLAGS.some((c) => c.key === key) ? key : `f_${key}`);
-
-function queryFrom(sp: SP): SearchQuery {
-  const n = (v?: string) => Number(v) || 0;
-  return {
-    guests: n(sp.guests), rooms: n(sp.rooms), budget: n(sp.budget), text: sp.q ?? "", maxDistM: n(sp.max_dist),
-    showers: n(sp.showers), toilets: n(sp.toilets), sqm: n(sp.sqm), sofaBeds: n(sp.sofa_beds), cribs: n(sp.cribs), parking: n(sp.parking),
-    condition: sp.condition ?? "", floor: sp.floor !== undefined && sp.floor !== "" ? Number(sp.floor) : null,
-    flags: [...AMENITIES, ...COLUMN_FLAGS].map((f) => f.key).filter((k) => sp[flagKey(k)]),
-  };
-}
 
 function Tags({ ev }: { ev: Evaluation }) {
   return (
@@ -67,58 +47,47 @@ async function closeBooking(fd: FormData) {
   redirect(`/bookings/${data}`);
 }
 
+async function addToWaitlist(fd: FormData) {
+  "use server";
+  const { supabase } = await getSession(["admin", "agent"]);
+  const back = String(fd.get("back"));
+  const sp = Object.fromEntries(new URLSearchParams(back)) as Record<string, string>;
+  const r = stayRange(sp);
+  const name = String(fd.get("name") || "").trim();
+  const phone = normPhone(String(fd.get("phone") || ""));
+  if (!r || !name || !phone) redirect(`/search?${back}&err=${encodeURIComponent("חסרים שם או טלפון לרשימת ההמתנה")}`);
+  const { error } = await supabase.from("search_waitlist").insert({
+    customer_name: name, customer_phone: phone, params: back, check_in: r.checkIn, check_out: r.checkOut, guests: Number(sp.guests) || null,
+  });
+  if (error) redirect(`/search?${back}&err=${encodeURIComponent("שמירה ברשימת ההמתנה נכשלה")}`);
+  redirect("/waitlist");
+}
+
 export default async function Search({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const { supabase, role, name } = await getSession(["admin", "agent"]);
   const now = nowInJerusalem();
   const weekends = upcomingWeekends(now.slice(0, 10));
-  const r = range(sp);
+  const r = stayRange(sp);
   const query = queryFrom(sp);
   const guests = query.guests;
   const sort: SortMode = sp.sort === "price" || sp.sort === "distance" ? sp.sort : "best";
   const back = new URLSearchParams(Object.entries(sp).filter(([k, v]) => k !== "err" && v) as [string, string][]).toString();
 
-  type Row = { apt: any; total: number | null; early: boolean; deposit: number; period: string; ev: Evaluation };
-  let exact: Row[] = [];
-  let near: Row[] = [];
-  let skipped: { name: string; reason: string }[] = [];
-  if (r && r.checkOut > r.checkIn) {
-    const nights = nightsBetween(r.checkIn, r.checkOut);
-    const { data: apts } = await supabase.from("apartments")
-      .select("id, name, beds, rooms, features, amenities, sofa_beds, cribs, parking_spots, has_yard, has_trampoline, has_swing, has_parents_unit, living_room_sqm, condition, floor, showers, toilets, address, distance_from_tomb_m, notes, early_cutoff_dow, early_cutoff_time, single_night_opens_dow, single_night_opens_time, owners(name), pricing_rules(*)")
-      .eq("active", true);
-    const ids = (apts ?? []).map((a) => a.id);
-    const [{ data: bks }, { data: blks }] = await Promise.all([
-      supabase.from("bookings").select("apartment_id, status, hold_expires_at, check_in, check_out")
-        .in("apartment_id", ids).in("status", ["hold", "confirmed"]).lt("check_in", r.checkOut).gt("check_out", r.checkIn),
-      supabase.from("blocks").select("apartment_id, date_from, date_to").in("apartment_id", ids).lt("date_from", r.checkOut).gt("date_to", r.checkIn),
-    ]);
-    const nowIso = new Date().toISOString();
-    const busyBy = new Map<string, { from: string; to: string }[]>();
-    const addBusy = (id: string, from: string, to: string) => busyBy.set(id, [...(busyBy.get(id) ?? []), { from, to }]);
-    for (const b of blks ?? []) addBusy(b.apartment_id, b.date_from, b.date_to);
-    for (const b of bks ?? []) if (b.status === "confirmed" || (b.hold_expires_at && b.hold_expires_at > nowIso)) addBusy(b.apartment_id, b.check_in, b.check_out);
+  let out: SearchOutcome | null = null;
+  if (r && r.checkOut > r.checkIn) out = await runSearch(supabase, query, r, sort, now, sp.cust_phone);
+  const exact = out?.exact ?? [], near = out?.near ?? [], skipped = out?.skipped ?? [];
 
-    const rows: Row[] = [];
-    for (const a of apts ?? []) {
-      const busyNights = busyNightCount(r.checkIn, r.checkOut, busyBy.get(a.id) ?? []);
-      if (busyNights >= nights) continue;
-      const q = quote(r.checkIn, r.checkOut, a, a.pricing_rules as PricingRule[], now);
-      if (!q.ok) { skipped.push({ name: a.name, reason: q.reason }); continue; }
-      const total = q.total;
-      rows.push({ apt: a, total, early: q.early, deposit: depositFor(total), period: PERIOD_HE[q.period], ev: evaluate(a, query, { nights, busyNights, total }) });
-    }
-    ({ exact, near } = rank(rows, guests, sort));
-  }
-
-  const ResultCard = ({ row: { apt, total, early, deposit, period, ev } }: { row: Row }) => (
+  const ResultCard = ({ row: { apt, total, early, deposit, period, ev, notes } }: { row: Row }) => (
     <div className={`card${ev.exact ? "" : " near"}`}>
       <div className="row">
         <h2 style={{ margin: 0 }}>{apt.name}</h2>
         <div><strong>{total?.toLocaleString()} ₪</strong> <span className="muted">· {period} · {early ? "מחיר מוזל" : "מחיר רגיל"}</span></div>
       </div>
       <p>{apt.beds} מיטות · {apt.rooms ?? "?"} חדרים{apt.distance_from_tomb_m != null && ` · ${apt.distance_from_tomb_m} מ' מהציון`} · {apt.owners?.name}</p>
+      <p><strong>{explain(apt, ev)}</strong></p>
       <Tags ev={ev} />
+      {notes.map((t, i) => <span key={i} className="tag ok">★ {t}</span>)}
       {detailsLine(apt) && <p className="muted">{detailsLine(apt)}</p>}
       {apt.features?.length > 0 && <p className="muted">{apt.features.join(" · ")}</p>}
       {apt.notes && <p className="muted">{apt.notes}</p>}
@@ -131,8 +100,8 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
           <input type="hidden" name="guests" value={sp.guests ?? ""} />
           <input type="hidden" name="back" value={back} />
           <div className="grid2">
-            <div><label>שם הלקוח</label><input name="name" required /></div>
-            <div><label>טלפון</label><input name="phone" inputMode="tel" required /></div>
+            <div><label>שם הלקוח</label><input name="name" defaultValue={out?.returning?.name ?? ""} required /></div>
+            <div><label>טלפון</label><input name="phone" inputMode="tel" defaultValue={sp.cust_phone ?? ""} required /></div>
           </div>
           <button className="primary">{ev.exact ? "סגור הזמנה" : "סגור הזמנה למרות הפערים"} · מקדמה {deposit.toLocaleString()} ₪</button>
         </form>
@@ -175,6 +144,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
               <option value="distance">הכי קרובה לציון</option>
             </select>
           </div>
+          <div><label>טלפון הלקוח (לזיהוי לקוח חוזר)</label><input name="cust_phone" inputMode="tel" defaultValue={sp.cust_phone} /></div>
           <div><label>תקציב מקסימלי (₪)</label><input type="number" name="budget" min={0} defaultValue={sp.budget} /></div>
           <div>
             <label>מצב הדירה</label>
@@ -199,6 +169,14 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
             ))}
           </div>
         </details>
+        <details open={query.must.length > 0}>
+          <summary>מה חובה (ולא רק רצוי)</summary>
+          <div className="checks">
+            {[{ key: "guests", label: "מספר המיטות" }, { key: "rooms", label: "חדרים" }, { key: "budget", label: "התקציב" }, { key: "dist", label: "המרחק מהציון" }, ...COLUMN_FLAGS, ...AMENITIES].map((f) => (
+              <label key={f.key}><input type="checkbox" name={`must_${f.key}`} value="1" defaultChecked={query.must.includes(f.key)} /> {f.label}</label>
+            ))}
+          </div>
+        </details>
         <p className="muted">דירה שלא עונה על דרישה לא נעלמת: היא מוצגת עם סימון ⚠ מה חסר בה, ומדורגת אחרי המתאימות לגמרי.</p>
         <button className="primary">חיפוש</button>
       </form>
@@ -207,12 +185,39 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
 
       {r && (
         <>
-          <p className="muted">{fmtDate(r.checkIn)} עד {fmtDate(r.checkOut)} · {exact.length} מתאימות לגמרי{near.length > 0 && ` · ${near.length} כמעט מתאימות`}</p>
+          <p className="muted">{fmtDate(r.checkIn)} עד {fmtDate(r.checkOut)}{out?.returning && ` · לקוח חוזר: ${out.returning.name} (${out.returning.bookings} הזמנות קודמות)`} · {exact.length} מתאימות לגמרי{near.length > 0 && ` · ${near.length} כמעט מתאימות`}</p>
           {exact.length === 0 && near.length > 0 && <p className="muted">אין דירה שעונה על כל הדרישות. אלה הקרובות ביותר:</p>}
           {exact.length === 0 && near.length === 0 && <p className="muted">לא נמצאה דירה קרובה. אפשר להרחיב תאריכים או לוותר על חלק מהדרישות.</p>}
           {exact.map((row) => <ResultCard key={row.apt.id} row={row} />)}
           {near.length > 0 && exact.length > 0 && <h2>כמעט מתאימות</h2>}
           {near.map((row) => <ResultCard key={row.apt.id} row={row} />)}
+          {(out?.splits.length ?? 0) > 0 && (
+            <>
+              <h2>אין דירה אחת, אפשר לפצל בין שתיים קרובות</h2>
+              {out!.splits.map((sp2, i) => (
+                <div key={i} className="card near">
+                  <p><strong>{sp2.a.apt.name} + {sp2.b.apt.name}</strong> · {sp2.beds} מיטות יחד · {sp2.total?.toLocaleString()} ₪ · {sp2.gapM} מ' ביניהן</p>
+                  <p className="muted">{sp2.a.apt.name}: {sp2.a.apt.beds} מיטות, {sp2.a.apt.distance_from_tomb_m} מ' מהציון · {sp2.b.apt.name}: {sp2.b.apt.beds} מיטות, {sp2.b.apt.distance_from_tomb_m} מ' מהציון</p>
+                </div>
+              ))}
+            </>
+          )}
+          {(out?.held.length ?? 0) > 0 && (
+            <details className="card"><summary>שמורות כרגע לטלפנית אחרת ({out!.held.length})</summary>
+              <ul>{out!.held.map((h, i) => <li key={i}>{h.name}: נשמרת עד {new Date(h.until).toLocaleTimeString("he-IL", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit" })}, ואם לא תשולם מקדמה היא תתפנה</li>)}</ul>
+            </details>
+          )}
+          {exact.length === 0 && (
+            <form action={addToWaitlist} className="card">
+              <h3>לשמור את הבקשה ברשימת המתנה</h3>
+              <input type="hidden" name="back" value={back} />
+              <div className="grid2">
+                <div><label>שם הלקוח</label><input name="name" defaultValue={out?.returning?.name ?? ""} required /></div>
+                <div><label>טלפון</label><input name="phone" inputMode="tel" defaultValue={sp.cust_phone ?? ""} required /></div>
+              </div>
+              <button>הוסף לרשימת המתנה</button>
+            </form>
+          )}
           {skipped.length > 0 && (
             <details className="card"><summary>דירות פנויות שלא ניתן לתמחר ({skipped.length})</summary>
               <ul>{skipped.map((s, i) => <li key={i}>{s.name}: {s.reason}</li>)}</ul>
