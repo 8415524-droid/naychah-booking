@@ -21,7 +21,7 @@ jobs:
         run: |
           git config user.name "voice-bot"
           git config user.email "voice-bot@users.noreply.github.com"
-          git add docs/voice-analysis.md
+          git add -f docs/voice-analysis.md || true
           git commit -m "ניתוח ההקלטה" || echo "אין שינוי"
           git pull --rebase origin main
           git push
