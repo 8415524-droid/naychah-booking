@@ -16,7 +16,7 @@ export default function Shell({ role, name, children }: { role: Role; name: stri
     <>
       <header className="top">
         <nav className="nav">
-          <Link href="/"><strong>נייחא</strong></Link>
+          <Link href="/" className="brand"><span className="logo-tile"><img src="/logo-full.webp" width={72} height={44} alt="נייחא" /></span></Link>
           {(role === "admin" || role === "agent") && <Link href="/search">חיפוש</Link>}
           {role !== "none" && <Link href="/bookings">הזמנות</Link>}
           {(role === "admin" || role === "agent") && <Link href="/customers">לקוחות</Link>}
