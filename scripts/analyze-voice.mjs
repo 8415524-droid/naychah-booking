@@ -18,7 +18,7 @@ try {
 for (let i = 0; i < 14; i++) {
   const model = MODELS[i % MODELS.length];
   const key = KEYS[i % KEYS.length];
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/x", {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify({ contents: [{ parts: [{ inlineData: { mimeType: "audio/mp3", data: b64 } }, { text: prompt }] }] }),
