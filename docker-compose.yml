@@ -40,5 +40,16 @@ services:
       TZINTUK_SECRET: ${TZINTUK_SECRET}
     depends_on: [app]
 
+  # סנכרון יומנים חיצוניים (iCal) לכל הדירות, פעם בשעה.
+  icalsync:
+    image: curlimages/curl:8.10.1
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'sleep 60; while true; do curl -fsS -m 300 http://app:3000/api/ical-sync/$${TZINTUK_SECRET} >/dev/null 2>&1; sleep 3600; done'
+    environment:
+      TZINTUK_SECRET: ${TZINTUK_SECRET}
+    depends_on: [app]
+
 volumes:
   caddy_data:

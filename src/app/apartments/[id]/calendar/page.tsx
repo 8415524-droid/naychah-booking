@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import Shell from "@/components/Shell";
 import { addDays, dowOf, nowInJerusalem } from "@/lib/pricing";
-import { isSafeIcalUrl, parseIcal } from "@/lib/ical";
+import { syncApartmentIcal } from "@/lib/ical-sync";
 import { DOW_HE } from "@/lib/labels";
 import { closeNight, openNight } from "@/lib/blocks";
 
@@ -33,25 +33,10 @@ async function importIcal(fd: FormData) {
   const { data: a } = await supabase.from("apartments").select("ical_import_url").eq("id", apt).single();
   const url = a?.ical_import_url;
   if (!url) return back("לא הוגדרה כתובת יומן לייבוא (בעריכת הדירה)");
-  if (!isSafeIcalUrl(url)) return back("כתובת היומן אינה תקינה (נדרש https לכתובת ציבורית)");
-  let text: string;
-  try {
-    const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return back(`היומן החיצוני החזיר שגיאה ${res.status}`);
-    text = (await res.text()).slice(0, 2_000_000);
-  } catch {
-    return back("לא הצלחתי להגיע ליומן החיצוני");
-  }
-  const today = nowInJerusalem().slice(0, 10);
-  const ranges = parseIcal(text).filter((r) => r.to > today);
-  await supabase.from("blocks").delete().eq("apartment_id", apt).eq("source", "ical");
-  let added = 0, skipped = 0;
-  for (const r of ranges) {
-    const { error } = await supabase.from("blocks").insert({ apartment_id: apt, date_from: r.from < today ? today : r.from, date_to: r.to, source: "ical" });
-    if (error) skipped++; else added++;
-  }
+  const r = await syncApartmentIcal(supabase, apt, url);
+  if (!r.ok) return back(r.error ?? "הסנכרון נכשל");
   revalidatePath(`/apartments/${apt}/calendar`);
-  back(`יובאו ${added} חסימות${skipped ? `, ${skipped} דולגו כי כבר תפוסות` : ""}`);
+  back(`יובאו ${r.added} חסימות${r.skipped ? `, ${r.skipped} חפיפות טופלו (לילות תפוסים דולגו)` : ""}`);
 }
 
 export default async function Calendar({ params, searchParams }: {
@@ -124,7 +109,12 @@ export default async function Calendar({ params, searchParams }: {
       <div className="card">
         <h2>סנכרון יומן</h2>
         <p><strong>ייצוא:</strong> הדבק את הכתובת הזו ביומן שלך (Google Calendar → הוספת יומן → מכתובת URL). היא סודית, אל תשתף אותה.</p>
-        <input readOnly value={feedUrl} onFocus={(e) => e.currentTarget.select()} />
+        <input readOnly value={feedUrl} />
+        <p className="row">
+          <a className="btn" href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(feedUrl.replace("https://", "webcal://"))}`} target="_blank" rel="noreferrer">הוסף ליומן גוגל</a>
+          <a className="btn" href={feedUrl.replace("https://", "webcal://")}>הוסף ליומן אפל / אאוטלוק</a>
+        </p>
+        <p className="muted">אין לך יומן עדיין? פתח יומן חדש (גוגל, אפל או אאוטלוק) והוסף אליו את הכתובת, והחסימות וההזמנות ייכנסו אליו ויתעדכנו לבד. ייבוא מיומן קיים (בכל סוג) מוגדר בעריכת הדירה, והוא מתעדכן כל שעה. כך הסנכרון דו-כיווני.</p>
         <p><strong>ייבוא:</strong> {apt.ical_import_url ? "מוגדרת כתובת יומן חיצוני." : "לא הוגדרה כתובת (מגדירים בעריכת הדירה)."}</p>
         {canEdit && (
           <form action={importIcal}>
