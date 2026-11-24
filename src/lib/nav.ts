@@ -10,7 +10,7 @@ export function navGroups(role: Role): NavGroup[] {
   const groups: NavGroup[] = [
     { title: "ראשי", items: [
       { href: "/", label: "בית", icon: "🏠" },
-      ...(staff ? [{ href: "/search", label: "חיפוש דירה", icon: "🔎" }, { href: "/alerts", label: "התראות", icon: "🔔" }] : []),
+      ...(staff ? [{ href: "/search", label: "חיפוש דירה", icon: "🔎" }, { href: "/waitlist", label: "רשימת המתנה", icon: "⏳" }, { href: "/alerts", label: "התראות", icon: "🔔" }] : []),
       ...(role === "owner" ? [{ href: "/my-report", label: "הדוח שלי", icon: "📄" }] : []),
     ] },
     { title: "הזמנות", items: [
