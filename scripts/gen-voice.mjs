@@ -6,7 +6,8 @@ const KEYS = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2, process.
 if (!KEYS.length) throw new Error("חסר GEMINI_API_KEY");
 let keyIdx = 0;
 const VOICE = process.env.VOICE || "Algenib";
-const STYLE = "קרא בעברית רגילה וברורה, בלי הטעמה במלעיל, בקול גברי מבוגר, מעט צרוד וחם. הנימה: מלהיבה ושיווקית מאוד, כמו מוכר כריזמטי בשוק שמזמין לקוחות בהתלהבות ובחיוך רחב, אבל תמיד בצורה מכובדת ומכבדת. קצב מהיר, זורם ואנרגטי, קריאה רציפה בלי עצירות ובלי קטיעות באמצע מילים. את הצירוף 'ברוכים הבאים לנַיְיחַא' קרא ברצף אחד חלק בלי שום הפסקה לפני המילה נַיְיחַא, והמילה נַיְיחַא עצמה בהדגשה נלהבת וחזקה על ההברה הראשונה בלבד: NAY-cha (נַיְ-חַא), בהטעמה במלעיל, ולא על ההברה האחרונה. את 'שבת של נחת בְּמִירוֹן' קרא בהתלהבות וסיים בנימה יורדת של סוף משפט, ואז המשך לאפשרויות בקצב אחיד וקליל. ";
+const STYLE = "הנחיות קריאה (אין להקריא אותן, הן רק הוראות): נימה נלהבת, שיווקית וחמה כמו מוכר כריזמטי בשוק אבל מכובד, קול גברי מבוגר מעט צרוד, קצב מהיר ורציף ללא עצירות. המילה נַיְיחַא בהטעמה במלעיל (ההברה הראשונה). ";
+const READ_ONLY = "\n\nהקרא עכשיו את הטקסט הבא בלבד, מילה במילה, בלי להוסיף שום מילה ובלי לשנות או להשמיט, וסיים מיד בסופו:\n";
 
 import { readFileSync, existsSync } from "node:fs";
 const ALL = JSON.parse(readFileSync("src/lib/pbx/clips.json", "utf8"));
@@ -32,7 +33,7 @@ for (const { voice, name, text } of jobs) {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": KEYS[(keyIdx + attempt) % KEYS.length] },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: STYLE + text }] }],
+        contents: [{ parts: [{ text: STYLE + READ_ONLY + text }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
