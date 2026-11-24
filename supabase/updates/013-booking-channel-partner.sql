@@ -1,4 +1,4 @@
--- 011: סימון ערוץ הגעה בהזמנה (RPC, כי אין עדכון ישיר על bookings) + קריאה לתפקיד שותף. תוספות בלבד, בטוח להרצה חוזרת.
+-- 013: סימון ערוץ הגעה בהזמנה (RPC, כי אין עדכון ישיר על bookings) + קריאה לתפקיד שותף. תוספות בלבד, בטוח להרצה חוזרת.
 create or replace function set_booking_channel(p_booking uuid, p_channel text)
 returns void language plpgsql security definer set search_path = public as $$
 begin
