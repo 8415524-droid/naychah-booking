@@ -17,6 +17,8 @@ export default async function MyReport({ searchParams }: { searchParams: Promise
     supabase.from("bookings").select("id, apartment_id, check_in, check_out, status, total_price, deposit_required, guests, apartments(name)")
       .lt("check_in", to).gt("check_out", from).order("check_in"),
   ]);
+  const contacts = role === "owner" ? ((await supabase.rpc("owner_booking_contacts")).data ?? []) as { booking_id: string; full_name: string; phone: string }[] : [];
+  const contactOf = (id: string) => contacts.find((c) => c.booking_id === id);
   const s = summarize((apts ?? []).map((a: any) => ({ id: a.id, name: a.name, owner_id: a.owner_id, owner_name: a.owners?.name ?? "" })), bookings ?? [], from, to);
   const list = (bookings ?? []).filter((b) => b.status === "confirmed" || b.status === "hold");
   return (
@@ -37,9 +39,9 @@ export default async function MyReport({ searchParams }: { searchParams: Promise
       <div className="card">
         <h2>הזמנות בחודש</h2>
         <table>
-          <thead><tr><th>דירה</th><th>תאריכים</th><th>אנשים</th><th>סכום</th><th>סטטוס</th></tr></thead>
+          <thead><tr><th>דירה</th><th>תאריכים</th><th>אנשים</th><th>סכום</th><th>סטטוס</th>{role === "owner" && <th>לקוח</th>}</tr></thead>
           <tbody>{list.map((b: any) => (
-            <tr key={b.id}><td>{b.apartments?.name}</td><td>{fmtDate(b.check_in)} – {fmtDate(b.check_out)}</td><td>{b.guests ?? ""}</td><td>{b.total_price.toLocaleString()} ₪</td><td>{STATUS_HE[b.status]}</td></tr>
+            <tr key={b.id}><td>{b.apartments?.name}</td><td>{fmtDate(b.check_in)} – {fmtDate(b.check_out)}</td><td>{b.guests ?? ""}</td><td>{b.total_price.toLocaleString()} ₪</td><td>{STATUS_HE[b.status]}</td>{role === "owner" && <td>{contactOf(b.id) ? <a href={`tel:${contactOf(b.id)!.phone}`}>{contactOf(b.id)!.full_name} · <span dir="ltr">{contactOf(b.id)!.phone}</span></a> : ""}</td>}</tr>
           ))}</tbody>
         </table>
         {list.length === 0 && <p className="muted">אין הזמנות בחודש הזה.</p>}
