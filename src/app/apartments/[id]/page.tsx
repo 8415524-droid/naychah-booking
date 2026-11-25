@@ -10,6 +10,9 @@ import ApartmentMap from "@/components/ApartmentMap";
 import Shell from "@/components/Shell";
 import ApartmentFields, { parseApartment } from "@/components/ApartmentFields";
 import { PERIOD_HE, detailsLine } from "@/lib/labels";
+import MediaUploader from "@/components/MediaUploader";
+import { deleteMedia } from "./media-actions";
+import { mediaUrl } from "@/lib/media";
 
 async function saveApartment(fd: FormData) {
   "use server";
@@ -89,6 +92,7 @@ export default async function Apartment({ params, searchParams }: {
   const { data: apt } = await supabase.from("apartments").select("*, owners(name)").eq("id", id).single();
   if (!apt) notFound();
   const { data: rules } = await supabase.from("pricing_rules").select("*").eq("apartment_id", id).order("period_type");
+  const { data: media } = await supabase.from("apartment_media").select("id, path, kind").eq("apartment_id", id).order("created_at");
   const canEdit = role !== "agent";
   // דירה עם כתובת שעוד לא אותרה: מאתרים אוטומטית ברקע (הרענון הבא כבר יציג)
   if (canEdit && apt.address && apt.walk_minutes == null && apt.lat == null) {
@@ -145,6 +149,25 @@ export default async function Apartment({ params, searchParams }: {
           <p>{apt.notes}</p>
         </Collapsible>
       )}
+
+      <Collapsible title="תמונות וסרטונים" summary={media?.length ? `${media.length} קבצים` : "אין עדיין"}>
+        {canEdit && <MediaUploader apartmentId={id} />}
+        <div className="gallery" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginTop: 12 }}>
+          {media?.map((m) => {
+            const url = mediaUrl(process.env.NEXT_PUBLIC_SUPABASE_URL!, m.path);
+            return (
+              <figure key={m.id} style={{ margin: 0 }}>
+                {m.kind === "video"
+                  ? <video src={url} controls preload="metadata" style={{ width: "100%", borderRadius: 8 }} />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  : <a href={url} target="_blank" rel="noopener noreferrer"><img src={url} alt={`תמונה של ${apt.name}`} loading="lazy" style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 8 }} /></a>}
+                {canEdit && <form action={deleteMedia}><input type="hidden" name="id" value={m.id} /><button className="danger">מחיקה</button></form>}
+              </figure>
+            );
+          })}
+        </div>
+        {!media?.length && <p className="muted">עדיין לא הועלו תמונות או סרטונים.</p>}
+      </Collapsible>
 
       <Collapsible title="מחירים" summary={`${rules?.length ?? 0} כללי מחיר`}>
         <p className="muted">מחיר מוזל חל כשסוגרים עד שעת הסף של הדירה. מחיר רגיל חל אחרי כן (למשל ביום שישי). לתקופה בלי הבדל, השאר את המחיר הרגיל ריק.</p>
