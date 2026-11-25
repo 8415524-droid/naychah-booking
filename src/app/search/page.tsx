@@ -29,6 +29,7 @@ async function closeBooking(fd: FormData) {
   const checkOut = String(fd.get("check_out"));
   const back = String(fd.get("back"));
   const fail = (m: string) => redirect(`/search?${back}&err=${encodeURIComponent(m)}`);
+  const exit = (to: string) => redirect(back.includes("embed=1") ? `/search/go?to=${encodeURIComponent(to)}` : to);
 
   const { data: apt } = await supabase.from("apartments")
     .select("id, active, early_cutoff_dow, early_cutoff_time, single_night_opens_dow, single_night_opens_time, pricing_rules(*)")
@@ -45,7 +46,7 @@ async function closeBooking(fd: FormData) {
     p_total: q.total,
   });
   if (error) return fail(error.code === "23P01" ? "הדירה כבר נתפסה בתאריכים אלה" : "שגיאה בתפיסת הדירה");
-  redirect(`/bookings/${data}`);
+  exit(`/bookings/${data}`);
 }
 
 async function addToWaitlist(fd: FormData) {
@@ -61,7 +62,7 @@ async function addToWaitlist(fd: FormData) {
     customer_name: name, customer_phone: phone, params: back, check_in: r.checkIn, check_out: r.checkOut, guests: Number(sp.guests) || null,
   });
   if (error) redirect(`/search?${back}&err=${encodeURIComponent("שמירה ברשימת ההמתנה נכשלה")}`);
-  redirect("/waitlist");
+  redirect(back.includes("embed=1") ? `/search/go?to=${encodeURIComponent("/waitlist")}` : "/waitlist");
 }
 
 export default async function Search({ searchParams }: { searchParams: Promise<SP> }) {
@@ -73,13 +74,14 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
   const query = queryFrom(sp);
   const guests = query.guests;
   const sort: SortMode = sp.sort === "price" || sp.sort === "near" ? sp.sort : "best";
-  const MAIN = ["weekend", "stay", "guests", "rooms", "budget", "maxwalk", "q", "sort", "err"];
+  const embed = sp.embed === "1";
+  const MAIN = ["weekend", "stay", "guests", "rooms", "budget", "maxwalk", "q", "sort", "err", "embed"];
   const moreCount = Object.entries(sp).filter(([k, v]) => v && !MAIN.includes(k)).length;
   const back = new URLSearchParams(Object.entries(sp).filter(([k, v]) => k !== "err" && v) as [string, string][]).toString();
 
   // מספיק למלא שדה אחד כלשהו: בלי תאריכים מדרגים לפי שאר הדרישות בלבד
   const dated = !!r && r.checkOut > r.checkIn;
-  const filled = Object.entries(sp).some(([k, v]) => v && !["err", "stay", "sort"].includes(k));
+  const filled = Object.entries(sp).some(([k, v]) => v && !["err", "stay", "sort", "embed"].includes(k));
   let out: SearchOutcome | null = null;
   if (filled) out = await runSearch(supabase, query, dated ? r : null, sort, now, sp.cust_phone);
   const exact = out?.exact ?? [], near = out?.near ?? [];
@@ -115,10 +117,14 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
     </div>
   );
 
+  const Frame = ({ children }: { children: React.ReactNode }) =>
+    embed ? <main className="embed">{children}</main> : <Shell role={role} name={name}>{children}</Shell>;
+
   return (
-    <Shell role={role} name={name}>
-      <h1>חיפוש דירה</h1>
+    <Frame>
+      {!embed && <h1>חיפוש דירה</h1>}
       <form className="card" method="get">
+        {embed && <input type="hidden" name="embed" value="1" />}
         <p className="muted">אפשר למלא רק חלק מהשדות. כל מה שלא מולא לא נדרש, ודירות שלא עונות על הכול מוצגות עם סימון מה חסר.</p>
         <div className="grid2">
           <div>
@@ -228,6 +234,6 @@ export default async function Search({ searchParams }: { searchParams: Promise<S
           )}
         </>
       )}
-    </Shell>
+    </Frame>
   );
 }

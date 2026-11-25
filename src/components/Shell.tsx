@@ -6,6 +6,7 @@ import type { Role } from "@/lib/auth";
 import Sidebar from "@/components/Sidebar";
 import GlobalSearch from "@/components/GlobalSearch";
 import MenuButton from "@/components/MenuButton";
+import NewBookingPanel from "@/components/NewBookingPanel";
 import { navGroups } from "@/lib/nav";
 
 async function logout() {
@@ -32,6 +33,7 @@ export default function Shell({ role, name, children }: { role: Role; name: stri
         <Sidebar groups={navGroups(role)} />
         <main>{children}</main>
       </div>
+      {(role === "admin" || role === "agent") && <NewBookingPanel />}
     </>
   );
 }
